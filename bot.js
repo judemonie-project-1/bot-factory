@@ -704,15 +704,12 @@ function generateGuardBotJs(d,ci){
   ln("process.on('uncaughtException',function(e){console.error('Uncaught:',e.message);});");
   ln("process.on('unhandledRejection',function(e){console.error('Rejection:',e&&e.message);});");
   ln("async function setCommands(){");
-  ln("  try{await bot.telegram.setMyCommands([");
-  ln("    {command:'ca',description:'Get contract address'},");
-  ln("    {command:'x',description:'Follow on Twitter/X'},");
-  ln("    {command:'socials',description:'All official links'},");
-  ln("    {command:'tax',description:'View tax info'},");
-  ln("    {command:'info',description:'Token information'},");
-  ln("    {command:'" + REVEAL + "',description:'Reveal CA (admin)'},");
-  ln("  ]);}catch(_){}");
-  ln("}");ln("app.listen(PORT,async function(){console.log('" + TICKER + " guard bot on port '+PORT);await new Promise(function(r){setTimeout(r,2000);});await registerWebhook();await setCommands();setInterval(function(){if(WEBHOOK_URL)fetch(WEBHOOK_URL+'/health').catch(function(){});},4*60*1000);console.log('" + TICKER + " guard bot live');});");
+  ln("  try{");
+  ln("    await bot.telegram.setMyCommands([{command:'ca',description:'Contract address'},{command:'x',description:'Follow on X'},{command:'socials',description:'All links'},{command:'tax',description:'Tax info'},{command:'info',description:'Token info'}]);");
+  ln("    await bot.telegram.setMyCommands([{command:'ca',description:'Contract address'},{command:'x',description:'Follow on X'},{command:'socials',description:'All links'},{command:'tax',description:'Tax info'},{command:'info',description:'Token info'},{command:'" + REVEAL + "',description:'Reveal CA'},{command:'" + HIDE + "',description:'Hide CA'}],{scope:{type:'all_chat_administrators'}});");
+  ln("  }catch(e){console.log('cmds:',e.message);}");
+  ln("}");
+  ln("}");ln("app.listen(PORT,async function(){console.log('" + TICKER + " guard bot on port '+PORT);try{await new Promise(function(r){setTimeout(r,2000);});}catch(_){}try{await registerWebhook();}catch(e){console.log(e.message);}try{await setCommands();}catch(e){console.log(e.message);}setInterval(function(){if(WEBHOOK_URL)fetch(WEBHOOK_URL+'/health').catch(function(){});},4*60*1000);console.log('" + TICKER + " guard bot live');});");
   return L.join('\n');
 }
 function generateFullBotJs(d,ci){
@@ -850,13 +847,12 @@ function generateFullBotJs(d,ci){
   ln("process.on('uncaughtException',function(e){console.error('Uncaught:',e.message);});");
   ln("process.on('unhandledRejection',function(e){console.error('Rejection:',e&&e.message);});");
   ln("async function setCommands(){");
-  ln("  try{await bot.telegram.setMyCommands([");
-  ln("    {command:'ca',description:'Get contract address'},");
-  ln("    {command:'x',description:'Follow on Twitter/X'},");
-  ln("    {command:'socials',description:'All official links'},");
-  ln("    {command:'" + REVEAL + "',description:'Reveal contract address (admin)'},");
-  ln("  ]);}catch(_){}");
-  ln("}");ln("app.listen(PORT,async function(){console.log('" + TICKER + " bot on port '+PORT);await new Promise(function(r){setTimeout(r,2000);});await registerWebhook();await setCommands();resetSilence();setInterval(function(){if(WEBHOOK_URL)fetch(WEBHOOK_URL+'/health').catch(function(){});},4*60*1000);console.log('" + TICKER + " bot live');});");
+  ln("  try{");
+  ln("    await bot.telegram.setMyCommands([{command:'ca',description:'Contract address'},{command:'x',description:'Follow on X'},{command:'socials',description:'All links'}]);");
+  ln("    await bot.telegram.setMyCommands([{command:'ca',description:'Contract address'},{command:'x',description:'Follow on X'},{command:'socials',description:'All links'},{command:'" + REVEAL + "',description:'Reveal CA'},{command:'" + HIDE + "',description:'Hide CA'}],{scope:{type:'all_chat_administrators'}});");
+  ln("  }catch(e){console.log('cmds:',e.message);}");
+  ln("}");
+  ln("}");ln("app.listen(PORT,async function(){console.log('" + TICKER + " bot on port '+PORT);try{await new Promise(function(r){setTimeout(r,2000);});}catch(_){}try{await registerWebhook();}catch(e){console.log(e.message);}try{await setCommands();}catch(e){console.log(e.message);}try{resetSilence();}catch(_){}setInterval(function(){if(WEBHOOK_URL)fetch(WEBHOOK_URL+'/health').catch(function(){});},4*60*1000);console.log('" + TICKER + " bot live');});");
   return L.join('\n');
 }
 //  FACTORY STARTUP 
@@ -876,22 +872,21 @@ process.on('uncaughtException',function(e){console.error('Uncaught:',e.message);
 process.on('unhandledRejection',function(e){console.error('Rejection:',e&&e.message);});
 app.listen(PORT,async function(){
   console.log('Bot Factory starting on port '+PORT);
-  await new Promise(function(r){setTimeout(r,2000);});
-  await getGhOwner();
-  await loadRegistry();
-  await registerWebhook();
+  try{await new Promise(function(r){setTimeout(r,2000);});}catch(_){}
+  try{await getGhOwner();}catch(e){console.log('GH:',e.message);}
+  try{await loadRegistry();}catch(e){console.log('Reg:',e.message);}
+  try{await registerWebhook();}catch(e){console.log('Hook:',e.message);}
   try{
     await bot.telegram.setMyCommands([
-      {command:'build',  description:'Build a new bot'},
-      {command:'bots',   description:'Your deployed bots'},
-      {command:'addbot', description:'Register existing bot'},
-      {command:'edit',   description:'Edit a bot'},
-      {command:'update', description:'Push latest code to bot(s)'},
-      {command:'stats',  description:'Bot health status'},
-      {command:'addgroq',description:'Add Groq API key'},
-      {command:'cancel', description:'Cancel current operation'},
+      {command:'build',   description:'Build a new bot'},
+      {command:'bots',    description:'Your deployed bots'},
+      {command:'addbot',  description:'Register existing bot'},
+      {command:'edit',    description:'Edit a bot'},
+      {command:'update',  description:'Push latest code to bot(s)'},
+      {command:'stats',   description:'Bot health status'},
+      {command:'addgroq', description:'Add Groq API key'},
+      {command:'cancel',  description:'Cancel current build'},
     ]);
-    await bot.telegram.setChatMenuButton({menuButton:{type:'commands'}});
   }catch(e){console.log('setCommands:',e.message);}
   setInterval(function(){if(WEBHOOK_URL)fetch(WEBHOOK_URL+'/health').catch(function(){});},4*60*1000);
   console.log('Bot Factory live. Send /start or /build.');
