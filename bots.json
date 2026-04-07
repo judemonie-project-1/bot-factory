@@ -1,0 +1,16 @@
+[
+  {
+    "ticker": "$Mpc",
+    "chain": "bsc",
+    "mode": "full",
+    "url": "https://mpc-bot-31hk.onrender.com",
+    "repoName": "mpc-bot-31hk",
+    "ghOwner": "judemonie-project-1",
+    "data": {
+      "status": "cto",
+      "ticker": "$Mpc",
+      "mode": "full"
+    },
+    "builtAt": 1775602619994
+  }
+]
