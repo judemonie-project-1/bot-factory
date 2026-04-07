@@ -117,7 +117,7 @@ bot.command('start',async function(ctx){
     '/addbot \u2014 Register an existing bot\n'+
     '/edit \u2014 Edit a live bot\n'+
     '/stats \u2014 Check bot health\n'+
-    '/addgroq KEY \u2014 Add Groq API key';
+    '/addgroq \u2014 Add Groq API key';
   if(fs.existsSync(welcomeImg)){
     var buf=fs.readFileSync(welcomeImg);
     return ctx.replyWithPhoto({source:buf},{caption:welcomeText,parse_mode:'HTML'});
@@ -135,7 +135,13 @@ bot.command(['build','new'],async function(ctx){
   sessions[uid].lastBotMsgId=m.message_id;
 });
 bot.command('cancel',function(ctx){delete sessions[String(ctx.from.id)];return ctx.reply(E.xmark+' Cancelled.');});
-bot.command('addgroq',function(ctx){var txt=(ctx.message.text||'').replace('/addgroq','').trim();if(!txt)return ctx.reply('Usage: /addgroq KEY');groqPool.push(txt);return ctx.reply(E.check+' Groq key added. Pool: '+groqPool.length);});
+var groqKeySessions={};
+bot.command('addgroq',async function(ctx){
+  var uid=String(ctx.from.id);
+  groqKeySessions[uid]=true;
+  try{await ctx.deleteMessage();}catch(_){}
+  return ctx.reply(E.gear+' Send the Groq API key below and it will be added automatically.');
+});
 bot.command('bots',async function(ctx){
   if(!botRegistry.length)return ctx.reply(E.list+' No bots yet. Use /build.');
   var msg=E.list+' <b>Your Bots</b>\n\n';
@@ -162,11 +168,7 @@ bot.command('addbot',async function(ctx){
   var uid=String(ctx.from.id);
   addBotSessions[uid]={step:'ticker',data:{}};
   try{await ctx.deleteMessage();}catch(_){}
-  var m=await ctx.reply(
-    E.wrench+' <b>Register existing bot</b>\n\n'+
-    'Step 1/4 \u2014 Ticker? (e.g. $PECKER)',
-    {parse_mode:'HTML'}
-  );
+  var m=await ctx.reply(E.wrench+' <b>Register bot</b>\n\nSend the ticker (e.g. $PECKER)',{parse_mode:'HTML'});
   addBotSessions[uid].lastMsgId=m.message_id;
 });
 
@@ -187,11 +189,13 @@ bot.action(/^edit_pick_(\d+)$/,async function(ctx){
   await ctx.answerCbQuery();
   var uid=String(ctx.from.id);var i=parseInt(ctx.match[1]);var b=botRegistry[i];if(!b)return;
   editSessions[uid]={botIdx:i,field:null};
+  var ctoLabel=b.data&&b.data.status==='cto'?'Switch to Launch mode':'Switch to CTO mode';
   var fields=[
     [{text:'Twitter/X link',callback_data:'edit_field_twitter_'+i}],
     [{text:'Website',callback_data:'edit_field_website_'+i}],
     [{text:'Narrative',callback_data:'edit_field_narrative_'+i}],
     [{text:'Bot image',callback_data:'edit_field_image_'+i}],
+    [{text:ctoLabel,callback_data:'edit_toggle_cto_'+i}],
     [{text:E.xmark+' Cancel',callback_data:'edit_cancel'}],
   ];
   return ctx.reply(E.wrench+' <b>Edit '+b.ticker+'</b>\nWhat to change?',{parse_mode:'HTML',reply_markup:{inline_keyboard:fields}});
@@ -200,8 +204,22 @@ bot.action(/^edit_field_(\w+)_(\d+)$/,async function(ctx){
   await ctx.answerCbQuery();
   var uid=String(ctx.from.id);var field=ctx.match[1],i=parseInt(ctx.match[2]);
   editSessions[uid]={botIdx:i,field:field};
-  var asks={twitter:'Send new Twitter/X link:',website:'Send new website (- to remove):',narrative:'Send new token narrative:',image:'Send new bot image (photo):'};
+  var asks={twitter:'Send new Twitter/X link:',website:'Send new website URL (- to remove):',narrative:'Send the new narrative for this token:',image:'Send new bot image (photo):',revealcmd:'Send new reveal-CA command (no slash):'};
   return ctx.reply(asks[field]||'Send new value:');
+});
+bot.action(/^edit_toggle_cto_(\d+)$/,async function(ctx){
+  await ctx.answerCbQuery();
+  var uid=String(ctx.from.id);var i=parseInt(ctx.match[1]);var b=botRegistry[i];
+  if(!b)return ctx.reply(E.xmark+' Bot not found.');
+  await ctx.reply(E.gear+' Updating project status...');
+  b.data=b.data||{};
+  b.data.status=b.data.status==='cto'?'launch':'cto';
+  var newCode=b.mode==='guard'?generateGuardBotJs(b.data,CHAIN_INFO[b.chain]||CHAIN_INFO.bsc):generateFullBotJs(b.data,CHAIN_INFO[b.chain]||CHAIN_INFO.bsc);
+  try{
+    if(b.repoName&&b.ghOwner)await githubPushFileUpdate(b.ghOwner,b.repoName,'bot.js',Buffer.from(newCode));
+    saveRegistry();
+    return ctx.reply(E.check+' <b>'+b.ticker+'</b> switched to <b>'+(b.data.status==='cto'?'CTO mode':'Launch mode')+'</b>\nRender redeploys in ~1 min.',{parse_mode:'HTML'});
+  }catch(e){return ctx.reply(E.xmark+' Failed: '+e.message);}
 });
 bot.action('edit_cancel',async function(ctx){await ctx.answerCbQuery();delete editSessions[String(ctx.from.id)];return ctx.reply(E.xmark+' Cancelled.');});
 bot.on('photo',async function(ctx){
@@ -245,8 +263,17 @@ bot.on('text',async function(ctx){
     await ctx.reply(E.gear+' Updating...');
     b.data[es.field]=(text==='-'?'':text);
     var newCode=b.mode==='guard'?generateGuardBotJs(b.data,CHAIN_INFO[b.chain]||CHAIN_INFO.bsc):generateFullBotJs(b.data,CHAIN_INFO[b.chain]||CHAIN_INFO.bsc);
-    try{await githubPushFileUpdate(b.ghOwner,b.repoName,'bot.js',Buffer.from(newCode));saveRegistry();delete editSessions[uid];return ctx.reply(E.check+' <b>'+b.ticker+'</b> updated! Render redeploys in ~1 min.',{parse_mode:'HTML'});}
+    try{await githubPushFileUpdate(b.ghOwner,b.repoName,'bot.js',Buffer.from(newCode));saveRegistry();delete editSessions[uid];return ctx.reply(E.check+' <b>'+b.ticker+'</b> \u2014 <b>'+es.field+'</b> updated successfully!\nRender will redeploy in ~1 min. No action needed.',{parse_mode:'HTML'});}
     catch(e){delete editSessions[uid];return ctx.reply(E.xmark+' Failed: '+e.message);}
+  }
+  // groq key session
+  if(groqKeySessions[uid]){
+    delete groqKeySessions[uid];
+    try{await ctx.deleteMessage();}catch(_){}
+    var k=text.trim();
+    if(!k||k.length<20)return ctx.reply(E.xmark+' That does not look like a valid key. Try /addgroq again.');
+    groqPool.push(k);
+    return ctx.reply(E.check+' Groq key added. Pool: '+groqPool.length+' key(s).');
   }
   // addbot wizard
   var abs=addBotSessions[uid];
@@ -255,33 +282,18 @@ bot.on('text',async function(ctx){
     if(abs.lastMsgId){try{await ctx.telegram.deleteMessage(ctx.chat.id,abs.lastMsgId);}catch(_){}abs.lastMsgId=null;}
     if(abs.step==='ticker'){
       abs.data.ticker=text.startsWith('$')?text:'$'+text;
-      abs.step='chain';
-      var m=await ctx.reply('Step 2/4 \u2014 Chain?  bsc  or  sol',{parse_mode:'HTML'});
-      abs.lastMsgId=m.message_id;return;
-    }
-    if(abs.step==='chain'){
-      abs.data.chain=/sol/i.test(text)?'sol':'bsc';
       abs.step='url';
-      var m=await ctx.reply('Step 3/4 \u2014 Render URL?\n<i>e.g. https://pecker-bot-xxxx.onrender.com</i>',{parse_mode:'HTML'});
+      var m=await ctx.reply('Now send the Render URL\n<i>e.g. https://pecker-bot-xxxx.onrender.com</i>',{parse_mode:'HTML'});
       abs.lastMsgId=m.message_id;return;
     }
     if(abs.step==='url'){
       abs.data.url=text.trim().replace(/\/+$/,'');
-      abs.step='mode';
-      var m=await ctx.reply('Step 4/4 \u2014 Mode?  full  or  guard',{parse_mode:'HTML'});
-      abs.lastMsgId=m.message_id;return;
-    }
-    if(abs.step==='mode'){
-      abs.data.mode=/guard/i.test(text)?'guard':'full';
-      var entry={ticker:abs.data.ticker,chain:abs.data.chain,mode:abs.data.mode,url:abs.data.url,repoName:'',ghOwner:GH_OWNER,data:{},builtAt:Date.now()};
+      // Auto-detect chain from URL or default bsc
+      var entry={ticker:abs.data.ticker,chain:'bsc',mode:'full',url:abs.data.url,repoName:'',ghOwner:GH_OWNER,data:{},builtAt:Date.now()};
       botRegistry.push(entry);
       saveRegistry();
       delete addBotSessions[uid];
-      return ctx.reply(
-        E.check+' <b>'+abs.data.ticker+'</b> registered!\n\n'+
-        'Use /stats to check health or /bots to see all bots.',
-        {parse_mode:'HTML'}
-      );
+      return ctx.reply(E.check+' <b>'+abs.data.ticker+'</b> registered! Use /stats to check or /bots to list.',{parse_mode:'HTML'});
     }
     delete addBotSessions[uid];return;
   }
@@ -320,7 +332,7 @@ async function loadRegistry(){if(!GH_OWNER)return;try{var r=await fetch('https:/
 async function runBuild(ctx,s,uid){
   var d=s.data,ci=CHAIN_INFO[d.chain]||CHAIN_INFO.bsc;
   var groqKey=d.mode==='full'?nextGroqKey():'';
-  if(d.mode==='full'&&!groqKey)return ctx.reply(E.xmark+' No Groq key. Use /addgroq KEY first.');
+  if(d.mode==='full'&&!groqKey)return ctx.reply(E.xmark+' No Groq key. Use /addgroq to add one.');
   var repoName=d.ticker.replace(/\$/g,'').replace(/[^a-zA-Z0-9]/g,'').toLowerCase()+'-bot-'+rndStr(4);
   var guessUrl='https://'+repoName+'.onrender.com';
   await ctx.reply(E.gear+' Deploying <b>'+d.ticker+'</b>...',{parse_mode:'HTML'});
