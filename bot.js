@@ -332,19 +332,23 @@ async function runBuild(ctx, s, uid) {
     // 2 - Render
     await ctx.reply(E.cloud + ' Creating Render service...');
     var ownerId = await renderGetOwnerId();
-    var svc     = await renderCreateService(repoName, ghOwner, ownerId);
+    var guessUrl = 'https://' + repoName + '.onrender.com';
+    var envVars = [
+      { key: 'BOT_TOKEN',   value: d.botToken },
+      { key: 'WEBHOOK_URL', value: guessUrl },
+    ];
+    if (d.mode === 'full') envVars.push({ key: 'GROQ_API_KEY', value: groqKey });
+    var svc = await renderCreateService(repoName, ghOwner, ownerId, envVars);
     var serviceId = svc.id;
     var actualUrl = (svc.serviceDetails && svc.serviceDetails.url)
       ? svc.serviceDetails.url
-      : 'https://' + repoName + '.onrender.com';
-
-    var envVars = [
-      { key: 'BOT_TOKEN',    value: d.botToken },
-      { key: 'WEBHOOK_URL',  value: actualUrl },
-    ];
-    if (d.mode === 'full') envVars.push({ key: 'GROQ_API_KEY', value: groqKey });
-
-    await renderSetEnvVars(serviceId, envVars);
+      : guessUrl;
+    if (actualUrl !== guessUrl) {
+      var updatedVars = envVars.map(function(v) {
+        return v.key === 'WEBHOOK_URL' ? { key: 'WEBHOOK_URL', value: actualUrl } : v;
+      });
+      await renderSetEnvVars(serviceId, updatedVars);
+    }
     await ctx.reply(E.check + ' Render: ' + actualUrl);
 
     // 3 - Cron-job
@@ -425,7 +429,7 @@ async function renderGetOwnerId() {
   return d[0].owner ? d[0].owner.id : d[0].id;
 }
 
-async function renderCreateService(name, ghOwner, ownerId) {
+async function renderCreateService(name, ghOwner, ownerId, envVars) {
   var body = {
     autoDeploy : 'yes',
     branch     : 'main',
@@ -433,6 +437,7 @@ async function renderCreateService(name, ghOwner, ownerId) {
     ownerId    : ownerId,
     repo       : 'https://github.com/' + ghOwner + '/' + name,
     type       : 'web_service',
+    envVars    : envVars || [],
     serviceDetails: {
       runtime      : 'node',
       plan         : 'free',
@@ -456,11 +461,13 @@ async function renderCreateService(name, ghOwner, ownerId) {
 }
 
 async function renderSetEnvVars(serviceId, vars) {
-  await fetch('https://api.render.com/v1/services/' + serviceId + '/env-vars', {
+  var r = await fetch('https://api.render.com/v1/services/' + serviceId + '/env-vars', {
     method : 'PUT',
     headers: { 'Authorization': 'Bearer ' + RENDER_KEY, 'Accept': 'application/json', 'Content-Type': 'application/json' },
     body   : JSON.stringify(vars),
   });
+  var d = await r.json();
+  if (!Array.isArray(d)) console.log('EnvVar set response:', JSON.stringify(d).slice(0, 200));
 }
 
 // --- CRON-JOB API ---
