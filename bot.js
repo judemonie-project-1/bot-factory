@@ -245,7 +245,16 @@ bot.on('text',async function(ctx){
 });
 async function sleep(ms){return new Promise(function(r){setTimeout(r,ms);});}
 function rndStr(n){var c='abcdefghijklmnopqrstuvwxyz0123456789',o='';for(var i=0;i<n;i++)o+=c[Math.floor(Math.random()*c.length)];return o;}
-function saveRegistry(){var json=JSON.stringify(botRegistry,null,2);if(GH_OWNER)githubPushFileUpdate(GH_OWNER,'bot-factory','bots.json',Buffer.from(json)).catch(function(e){console.log('Registry:',e.message);});}
+function saveRegistry(){
+  var safe=botRegistry.map(function(b){
+    var copy=JSON.parse(JSON.stringify(b));
+    if(copy.data){delete copy.data.botToken;delete copy.data.revealCmd;delete copy.data.hideCmd;}
+    delete copy.serviceId;
+    return copy;
+  });
+  var json=JSON.stringify(safe,null,2);
+  if(GH_OWNER)githubPushFileUpdate(GH_OWNER,'bot-factory','bots.json',Buffer.from(json)).catch(function(e){console.log('Registry:',e.message);});
+}
 async function loadRegistry(){if(!GH_OWNER)return;try{var r=await fetch('https://api.github.com/repos/'+GH_OWNER+'/bot-factory/contents/bots.json',{headers:{'Authorization':'token '+GITHUB_TOKEN,'Accept':'application/vnd.github.v3+json'}});if(r.ok){var d=await r.json();if(d.content){botRegistry=JSON.parse(Buffer.from(d.content,'base64').toString('utf8'));console.log('Registry:',botRegistry.length,'bots');}}}catch(e){console.log('Registry load:',e.message);}}
 async function runBuild(ctx,s,uid){
   var d=s.data,ci=CHAIN_INFO[d.chain]||CHAIN_INFO.bsc;
@@ -283,7 +292,9 @@ async function runBuild(ctx,s,uid){
     catch(e){await ctx.reply(E.xmark+' <b>'+d.ticker+'</b>: '+st.name+' failed\n<code>'+e.message.slice(0,300)+'</code>\n\nUse /build to retry.',{parse_mode:'HTML'});failed=true;break;}
   }
   if(!failed){
-    botRegistry.push({ticker:d.ticker,chain:d.chain,mode:d.mode,repoName:repoName,ghOwner:ghOwner,serviceId:serviceId,url:actualUrl,data:JSON.parse(JSON.stringify(d)),builtAt:Date.now()});
+    var safeData=JSON.parse(JSON.stringify(d));
+    delete safeData.botToken;
+    botRegistry.push({ticker:d.ticker,chain:d.chain,mode:d.mode,repoName:repoName,ghOwner:ghOwner,url:actualUrl,data:safeData,builtAt:Date.now()});
     saveRegistry();delete sessions[uid];
     await ctx.reply(E.party+' <b>'+d.ticker+' is live!</b>\n\n'+E.link+' '+actualUrl+'\n'+E.folder+' github.com/'+ghOwner+'/'+repoName+'\n\n<b>Next:</b>\n1. Wait 3-5 min for Render to build\n2. Add bot to your Telegram group\n3. Make it admin (delete/ban/restrict)\n4. /'+d.revealCmd+' to reveal CA',{parse_mode:'HTML'});
   }else{delete sessions[uid];}
