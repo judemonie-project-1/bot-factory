@@ -24,23 +24,24 @@ var sessions={};
 var editSessions={};
 function fmtNum(n){var s=String(n).replace(/,/g,'');var p=s.split('.');p[0]=p[0].replace(/\B(?=(\d{3})+(?!\d))/g,',');return p.join('.');}
 function ensurePct(s){s=String(s).trim();return s.endsWith('%')?s:s+'%';}
-function newSession(){return{step:'chain',lastBotMsgId:null,data:{chain:'bsc',mode:'full',tokenName:'',ticker:'',ca:'',supply:'',maxWalletPct:'',maxWalletTokens:'',buyTax:'',sellTax:'',twitter:'',website:'',renounced:'',locked:'',narrative:'',botToken:'',revealCmd:'revealca',hideCmd:'hideca'},imageBuffer:null};}
+function newSession(){return{step:'chain',lastBotMsgId:null,data:{chain:'bsc',mode:'full',tokenName:'',ticker:'',ca:'',supply:'',maxWalletPct:'',maxWalletTokens:'',buyTax:'',sellTax:'',twitter:'',website:'',renounced:'',locked:'',narrative:'',status:'launch',botToken:'',revealCmd:'revealca',hideCmd:'hideca'},imageBuffer:null};}
 var STEPS=[
-  {key:'chain',    ask:'<b>Step 1/15 \u2014 Chain?</b>\n\nbsc \u2014 BNB Smart Chain\nsol \u2014 Solana'},
-  {key:'mode',     ask:'<b>Step 2/15 \u2014 Bot mode?</b>\n\n<b>full</b> \u2014 AI replies, silence breaker, moderation\n<b>guard</b> \u2014 moderation + hardcoded answers only (no AI)'},
-  {key:'name',     ask:'<b>Step 3/15</b> \u2014 Token name?\n<i>e.g. PECKER</i>'},
-  {key:'ticker',   ask:'<b>Step 4/15</b> \u2014 Ticker with $?\n<i>e.g. $PECKER</i>'},
-  {key:'ca',       ask:'<b>Step 5/15</b> \u2014 Contract address?'},
-  {key:'supply',   ask:'<b>Step 6/15</b> \u2014 Total supply?\n<i>e.g. 1000000000</i>'},
-  {key:'maxwallet',ask:'<b>Step 7/15</b> \u2014 Max wallet % / token count?\n<i>e.g. 4.9% / 49000000 \u2014 or - to skip</i>'},
-  {key:'taxes',    ask:'<b>Step 8/15</b> \u2014 Buy / sell tax?\n<i>e.g. 5/5 \u2014 or - if no tax</i>'},
-  {key:'twitter',  ask:'<b>Step 9/15</b> \u2014 Twitter/X link?'},
-  {key:'website',  ask:'<b>Step 10/15</b> \u2014 Website? <i>(- to skip)</i>'},
-  {key:'renounced',ask:'<b>Step 11/15</b> \u2014 Contract renounced?  yes / no'},
-  {key:'locked',   ask:'<b>Step 12/15</b> \u2014 LP locked?  yes / no'},
-  {key:'narrative',ask:'<b>Step 13/15</b> \u2014 Token narrative / story?\n<i>What makes it unique. Used for AI personality.</i>'},
-  {key:'image',    ask:'<b>Step 14/15</b> \u2014 Send bot image (JPG or PNG)\n<i>- to skip</i>'},
-  {key:'bottoken', ask:'<b>Step 15/15</b> \u2014 Bot token from BotFather\n\n<i>1. Open @BotFather\n2. Send /newbot\n3. Enter name then username (must end in bot)\n4. Copy the token it gives you</i>'},
+  {key:'chain',    ask:'<b>Step 1/16 \u2014 Chain?</b>\n\nbsc \u2014 BNB Smart Chain\nsol \u2014 Solana'},
+  {key:'mode',     ask:'<b>Step 2/16 \u2014 Bot mode?</b>\n\n<b>full</b> \u2014 AI replies, silence breaker, moderation\n<b>guard</b> \u2014 moderation + hardcoded answers only (no AI)'},
+  {key:'status',   ask:'<b>Step 3/16</b> \u2014 Project status?\n\n<b>launch</b> \u2014 New launch, dev is active\n<b>cto</b> \u2014 Community takeover, original dev is gone'},
+  {key:'name',     ask:'<b>Step 4/16</b> \u2014 Token name?\n<i>e.g. PECKER</i>'},
+  {key:'ticker',   ask:'<b>Step 5/16</b> \u2014 Ticker with $?\n<i>e.g. $PECKER</i>'},
+  {key:'ca',       ask:'<b>Step 6/16</b> \u2014 Contract address?'},
+  {key:'supply',   ask:'<b>Step 7/16</b> \u2014 Total supply?\n<i>e.g. 1000000000</i>'},
+  {key:'maxwallet',ask:'<b>Step 8/16</b> \u2014 Max wallet % / token count?\n<i>e.g. 4.9% / 49000000 \u2014 or - to skip</i>'},
+  {key:'taxes',    ask:'<b>Step 9/16</b> \u2014 Buy / sell tax?\n<i>e.g. 5/5 \u2014 or - if no tax</i>'},
+  {key:'twitter',  ask:'<b>Step 10/16</b> \u2014 Twitter/X link?'},
+  {key:'website',  ask:'<b>Step 11/16</b> \u2014 Website? <i>(- to skip)</i>'},
+  {key:'renounced',ask:'<b>Step 12/16</b> \u2014 Contract renounced?  yes / no'},
+  {key:'locked',   ask:'<b>Step 13/16</b> \u2014 LP locked?  yes / no'},
+  {key:'narrative',ask:'<b>Step 14/16</b> \u2014 Token narrative / story?\n<i>What makes it unique. Used for AI personality.</i>'},
+  {key:'image',    ask:'<b>Step 15/16</b> \u2014 Send bot image (JPG or PNG)\n<i>- to skip</i>'},
+  {key:'bottoken', ask:'<b>Step 16/16</b> \u2014 Bot token from BotFather\n\n<i>1. Open @BotFather\n2. Send /newbot\n3. Enter name then username (must end in bot)\n4. Copy the token it gives you</i>'},
   {key:'revealcmd',ask:'Reveal-CA command? <i>(- for default: revealca)</i>'},
   {key:'hidecmd',  ask:'Hide-CA command? <i>(- for default: hideca)</i>'},
 ];
@@ -52,6 +53,7 @@ function processInput(s,text){
   switch(s.step){
     case 'chain': d.chain=(/sol/i.test(text)?'sol':'bsc'); break;
     case 'mode': d.mode=(/guard/i.test(text)?'guard':'full'); break;
+    case 'status': d.status=(/cto/i.test(text)?'cto':'launch'); break;
     case 'name': d.tokenName=text; break;
     case 'ticker': d.ticker=text.startsWith('$')?text:'$'+text; break;
     case 'ca': d.ca=text.trim(); break;
@@ -83,6 +85,7 @@ function buildSummary(s){
   return E.fire+' <b>Review your bot</b>\n\n'+
     '<b>Chain:</b> '+ci.label+'\n'+
     '<b>Mode:</b> '+(d.mode==='guard'?E.shield+' Guard only':E.robot+' Full bot')+'\n'+
+    '<b>Status:</b> '+(d.status==='cto'?'\u{1F91D} CTO (community takeover)':'\u{1F680} New launch, active dev')+'\n'+
     '<b>Token:</b> '+d.tokenName+' '+d.ticker+'\n'+
     '<b>CA:</b> <code>'+d.ca+'</code>\n'+
     '<b>Supply:</b> '+d.supply+'\n'+
@@ -96,24 +99,30 @@ function buildSummary(s){
 }
 var backKb=function(key){return{inline_keyboard:[[{text:E.back+' Back',callback_data:'back_'+key}]]};};
 bot.command('start',async function(ctx){
-  return ctx.reply(
-    E.rocket+' <b>Bot Factory</b>\n\n'+
-    'Build full Telegram bots for your crypto project automatically.\n\n'+
-    E.robot+' <b>What it does:</b>\n'+
-    '\u2022 Creates GitHub repo + pushes all code\n'+
-    '\u2022 Deploys to Render (free tier)\n'+
-    '\u2022 Sets up cron keepalive (every 2 min)\n'+
-    '\u2022 Fully working bot in ~2 minutes\n\n'+
-    '<b>Commands:</b>\n'+
+  var welcomeImg=path.join(__dirname,'factory.jpg');
+  var welcomeText=
+    '<b>Bot Factory</b>\n'+
+    'Deploy Telegram community bots for your token \u2014 automatically.\n\n'+
+    '<b>What you get:</b>\n'+
+    '\u2022 GitHub repo created and code pushed\n'+
+    '\u2022 Deployed to Render (free tier)\n'+
+    '\u2022 Cron keepalive every 2 min\n'+
+    '\u2022 Fully live bot in under 2 minutes\n\n'+
+    '<b>Supported chains:</b> BNB Smart Chain \u2022 Solana\n'+
+    '<b>Bot modes:</b> Full (AI) \u2022 Guard (moderation only)\n'+
+    '<b>Project types:</b> New launch \u2022 CTO\n\n'+
+    '<b>Commands</b>\n'+
     '/build \u2014 Build a new bot\n'+
-    '/bots \u2014 List your bots\n'+
+    '/bots \u2014 Your deployed bots\n'+
     '/addbot \u2014 Register an existing bot\n'+
-    '/edit \u2014 Edit a bot\n'+
+    '/edit \u2014 Edit a live bot\n'+
     '/stats \u2014 Check bot health\n'+
-    '/addgroq KEY \u2014 Add Groq API key\n'+
-    '/cancel \u2014 Cancel current build',
-    {parse_mode:'HTML'}
-  );
+    '/addgroq KEY \u2014 Add Groq API key';
+  if(fs.existsSync(welcomeImg)){
+    var buf=fs.readFileSync(welcomeImg);
+    return ctx.replyWithPhoto({source:buf},{caption:welcomeText,parse_mode:'HTML'});
+  }
+  return ctx.reply(welcomeText,{parse_mode:'HTML'});
 });
 bot.command('help',function(ctx){return ctx.reply(
   '/build \u2014 Build a new bot\n/bots \u2014 Your bots\n/addbot \u2014 Register existing bot\n/edit \u2014 Edit a bot\n/stats \u2014 Bot health\n/addgroq KEY \u2014 Add Groq key\n/cancel \u2014 Cancel',
@@ -364,7 +373,7 @@ function generateGuardBotJs(d,ci){
   var MAX_PCT=d.maxWalletPct||'N/A',MAX_TOK=d.maxWalletTokens||'';
   var BUY_TAX=d.buyTax,SELL_TAX=d.sellTax;
   var TWITTER=d.twitter,WEBSITE=d.website||'';
-  var RENOUNCED=d.renounced,LOCKED=d.locked;
+  var RENOUNCED=d.renounced,LOCKED=d.locked,STATUS=d.status||'launch',IS_CTO=STATUS==='cto';
   var REVEAL=(d.revealCmd||'revealca').replace(/^\//,'');
   var HIDE=(d.hideCmd||'hideca').replace(/^\//,'');
   var CHART_URL=ci.chartBase+CA,BUY_URL=ci.dexUrl+CA,DEX_NAME=ci.dex,CHAIN_LBL=ci.label;
@@ -414,9 +423,12 @@ function generateGuardBotJs(d,ci){
   ln("  if(topic==='locked')return{text:'LP: " + LOCKED + "\\nLiquidity is fully secured.',kb:null};");
   ln("  if(topic==='supply')return{text:'Total Supply: " + SUPPLY + "',kb:null};");
   ln("  if(topic==='socials')return{text:buildSocialsMsg(),kb:null};");
+  ln("  if(topic==='dev')return{text:IS_CTO");
+  ln("    ?'\\u{1F91D} '+TICKER+' is a CTO \\u2014 community takeover. Original dev gone. The community owns and runs this now. Community power is the strength here.'");
+  ln("    :'Dev is active, present, and building. '+TICKER+' has a committed team.',kb:null};");
   ln("  return null;");
   ln("}");
-  ln("function detectTopic(lower){if(['ca','contract','contract address','token address','where is the ca','whats the ca','what is the ca','give ca','drop ca','show ca'].some(function(w){return lower===w||lower.includes(w);}))return 'ca';if(lower==='x'||lower==='twitter'||lower.includes('twitter link')||lower.includes('follow on'))return 'x';if(lower.includes('tax')||lower.includes('buy tax')||lower.includes('sell tax'))return 'tax';if(lower.includes('max wallet')||lower.includes('maxwallet')||lower.includes('max hold'))return 'maxwallet';if(lower.includes('renounced')||lower.includes('contract lock'))return 'renounced';if(lower.includes(' lp ')||lower.includes('liquidity')||lower.includes('lp locked')||lower==='lp')return 'locked';if(lower.includes('supply')||lower.includes('total supply'))return 'supply';if(lower==='socials'||lower==='links'||lower.includes('website'))return 'socials';return null;}");
+  ln("function detectTopic(lower){if(['ca','contract','contract address','token address','where is the ca','whats the ca','what is the ca','give ca','drop ca','show ca'].some(function(w){return lower===w||lower.includes(w);}))return 'ca';if(lower==='x'||lower==='twitter'||lower.includes('twitter link')||lower.includes('follow on'))return 'x';if(lower.includes('tax')||lower.includes('buy tax')||lower.includes('sell tax'))return 'tax';if(lower.includes('max wallet')||lower.includes('maxwallet')||lower.includes('max hold'))return 'maxwallet';if(lower.includes('renounced')||lower.includes('contract lock'))return 'renounced';if(lower.includes(' lp ')||lower.includes('liquidity')||lower.includes('lp locked')||lower==='lp')return 'locked';if(lower.includes('supply')||lower.includes('total supply'))return 'supply';if(lower==='socials'||lower==='links'||lower.includes('website'))return 'socials';if(lower.includes('dev')||lower.includes('team')||lower.includes('cto')||lower.includes('who run')||lower.includes('who own'))return 'dev';return null;}");
   ln("bot.on('new_chat_members',async function(ctx){if(ctx.message.new_chat_members.some(function(m){return m.is_bot;}))return;try{await ctx.deleteMessage();}catch(_){}");
   ln("  for(var i=0;i<ctx.message.new_chat_members.length;i++){");
   ln("    var mem=ctx.message.new_chat_members[i];");
@@ -458,6 +470,7 @@ function generateFullBotJs(d,ci){
   var TWITTER=d.twitter,WEBSITE=d.website||'';
   var RENOUNCED=d.renounced,LOCKED=d.locked;
   var NARR=JSON.stringify(d.narrative||'');
+  var STATUS=d.status||'launch',IS_CTO=STATUS==='cto';
   var REVEAL=(d.revealCmd||'revealca').replace(/^\//,'');
   var HIDE=(d.hideCmd||'hideca').replace(/^\//,'');
   var CHAIN_LBL=ci.label,DEX_NAME=ci.dex;
@@ -485,6 +498,7 @@ function generateFullBotJs(d,ci){
   ln("var groq=new Groq({apiKey:GROQ_API_KEY});");
   ln("app.use(express.json());");
   ln("var caUnlocked=false,groupChatId=null,silenceTimer=null;");
+  ln("var IS_CTO=" + (IS_CTO ? "true" : "false") + ";");
   ln("var imageMessages=new Map(),strikes=new Map(),spamTracker=new Map(),stickerTracker=new Map();");
   ln("var lastReplies=[],MAX_REPLY_HIST=12;");
   ln("var IMG=path.join(__dirname,'siren.jpg');");
@@ -558,7 +572,7 @@ function generateFullBotJs(d,ci){
   ln("bot.command('links',async function(ctx){return ctx.reply(buildSocialsMsg(),{parse_mode:'HTML',disable_web_page_preview:true});});");
   ln("bot.command('" + REVEAL + "',async function(ctx){var t=ctx.chat&&ctx.chat.type;if(t==='private'){caUnlocked=true;return ctx.reply('CA is now REVEALED.');}var admin=await isAdmin(ctx,ctx.from.id);if(!admin)return;caUnlocked=true;var m=await ctx.reply('CA is now live.');autoDelete(ctx.chat.id,m.message_id,10000);});");
   ln("bot.command('" + HIDE + "',async function(ctx){var t=ctx.chat&&ctx.chat.type;if(t==='private'){caUnlocked=false;return ctx.reply('CA is now HIDDEN.');}var admin=await isAdmin(ctx,ctx.from.id);if(!admin)return;caUnlocked=false;var m=await ctx.reply('CA is now hidden.');autoDelete(ctx.chat.id,m.message_id,10000);});");
-  ln("bot.on('message',async function(ctx){var msg=ctx.message;if(!msg||!ctx.from)return;var uid=ctx.from.id,chatType=ctx.chat.type;var text=(msg.text||'').trim();var isPrivate=chatType==='private';if(!isPrivate&&groupChatId!==ctx.chat.id)groupChatId=ctx.chat.id;if(!isPrivate)resetSilence();var admin=await isAdmin(ctx,uid);if(!isPrivate&&!admin&&text){var spammed=await checkSpam(ctx,uid);if(spammed)return;stickerTracker.set(uid,0);if(msg.forward_from||msg.forward_sender_name||msg.forward_from_chat)return applyStrike(ctx,uid);if(hasBlockedLink(text))return applyStrike(ctx,uid);if(hasExtMention(text))return applyStrike(ctx,uid);if(hasFud(text))return applyStrike(ctx,uid);}if(!text)return;var lower=text.toLowerCase();var caWords=['ca','contract','contract address','token address','where is the ca','whats the ca','what is the ca','give ca','drop ca','show ca'];if(caWords.some(function(w){return lower===w||lower.includes(w);})){if(!caUnlocked)return ctx.reply(notLiveMsgs[Math.floor(Math.random()*notLiveMsgs.length)]);try{var cap=await buildCaCaption();return sendImage(ctx.chat.id,cap,{reply_markup:{inline_keyboard:[[{text:E.copy+' Copy CA',copy_text:{text:CA}}]]}});}catch(_){return ctx.reply(CA);}}if(lower==='x'||lower==='twitter')return sendXReply(ctx);if(lower==='socials'||lower==='links')return ctx.reply(buildSocialsMsg(),{parse_mode:'HTML',disable_web_page_preview:true});if(isPrivate){try{var dr=await smartAsk(systemPrompt(caUnlocked),text);if(dr!=='IGNORE')return ctx.reply(dr);}catch(_){}return;}try{var gr=await smartAsk(systemPrompt(caUnlocked),text);if(gr&&gr!=='IGNORE')return ctx.reply(gr);}catch(_){}});");
+  ln("bot.on('message',async function(ctx){var msg=ctx.message;if(!msg||!ctx.from)return;var uid=ctx.from.id,chatType=ctx.chat.type;var text=(msg.text||'').trim();var isPrivate=chatType==='private';if(!isPrivate&&groupChatId!==ctx.chat.id)groupChatId=ctx.chat.id;if(!isPrivate)resetSilence();var admin=await isAdmin(ctx,uid);if(!isPrivate&&!admin&&text){var spammed=await checkSpam(ctx,uid);if(spammed)return;stickerTracker.set(uid,0);if(msg.forward_from||msg.forward_sender_name||msg.forward_from_chat)return applyStrike(ctx,uid);if(hasBlockedLink(text))return applyStrike(ctx,uid);if(hasExtMention(text))return applyStrike(ctx,uid);if(hasFud(text))return applyStrike(ctx,uid);}if(!text)return;var lower=text.toLowerCase();var devWords=['dev','who is the dev','is dev active','dev status','dev gone','cto','community takeover','who runs','who owns'];if(devWords.some(function(w){return lower.includes(w);})){try{var dr2=await smartAsk(systemPrompt(caUnlocked),text);if(dr2&&dr2!=='IGNORE')return ctx.reply(dr2);}catch(_){}return;}var caWords=['ca','contract','contract address','token address','where is the ca','whats the ca','what is the ca','give ca','drop ca','show ca'];if(caWords.some(function(w){return lower===w||lower.includes(w);})){if(!caUnlocked)return ctx.reply(notLiveMsgs[Math.floor(Math.random()*notLiveMsgs.length)]);try{var cap=await buildCaCaption();return sendImage(ctx.chat.id,cap,{reply_markup:{inline_keyboard:[[{text:E.copy+' Copy CA',copy_text:{text:CA}}]]}});}catch(_){return ctx.reply(CA);}}if(lower==='x'||lower==='twitter')return sendXReply(ctx);if(lower==='socials'||lower==='links')return ctx.reply(buildSocialsMsg(),{parse_mode:'HTML',disable_web_page_preview:true});if(isPrivate){try{var dr=await smartAsk(systemPrompt(caUnlocked),text);if(dr!=='IGNORE')return ctx.reply(dr);}catch(_){}return;}try{var gr=await smartAsk(systemPrompt(caUnlocked),text);if(gr&&gr!=='IGNORE')return ctx.reply(gr);}catch(_){}});");
   ln("app.post('/webhook',function(req,res){bot.handleUpdate(req.body,res);});");
   ln("app.get('/',function(req,res){res.end('OK');});");
   ln("app.get('/health',function(req,res){res.end('OK');});");
