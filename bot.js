@@ -107,6 +107,7 @@ bot.command('start',async function(ctx){
     '<b>Commands:</b>\n'+
     '/build \u2014 Build a new bot\n'+
     '/bots \u2014 List your bots\n'+
+    '/addbot \u2014 Register an existing bot\n'+
     '/edit \u2014 Edit a bot\n'+
     '/stats \u2014 Check bot health\n'+
     '/addgroq KEY \u2014 Add Groq API key\n'+
@@ -115,7 +116,7 @@ bot.command('start',async function(ctx){
   );
 });
 bot.command('help',function(ctx){return ctx.reply(
-  '/build \u2014 Build a new bot\n/bots \u2014 Your bots\n/edit \u2014 Edit a bot\n/stats \u2014 Bot health\n/addgroq KEY \u2014 Add Groq key\n/cancel \u2014 Cancel',
+  '/build \u2014 Build a new bot\n/bots \u2014 Your bots\n/addbot \u2014 Register existing bot\n/edit \u2014 Edit a bot\n/stats \u2014 Bot health\n/addgroq KEY \u2014 Add Groq key\n/cancel \u2014 Cancel',
   {parse_mode:'HTML'}
 );});
 bot.command(['build','new'],async function(ctx){
@@ -147,6 +148,19 @@ bot.command('stats',async function(ctx){
   }
   return ctx.reply(msg,{parse_mode:'HTML',disable_web_page_preview:true});
 });
+var addBotSessions={};
+bot.command('addbot',async function(ctx){
+  var uid=String(ctx.from.id);
+  addBotSessions[uid]={step:'ticker',data:{}};
+  try{await ctx.deleteMessage();}catch(_){}
+  var m=await ctx.reply(
+    E.wrench+' <b>Register existing bot</b>\n\n'+
+    'Step 1/4 \u2014 Ticker? (e.g. $PECKER)',
+    {parse_mode:'HTML'}
+  );
+  addBotSessions[uid].lastMsgId=m.message_id;
+});
+
 bot.command('edit',async function(ctx){
   if(!botRegistry.length)return ctx.reply(E.wrench+' No bots to edit. Use /build first.');
   var kb=botRegistry.map(function(b,i){return[{text:b.ticker+' ('+b.chain.toUpperCase()+')',callback_data:'edit_pick_'+i}];});
@@ -225,6 +239,44 @@ bot.on('text',async function(ctx){
     try{await githubPushFileUpdate(b.ghOwner,b.repoName,'bot.js',Buffer.from(newCode));saveRegistry();delete editSessions[uid];return ctx.reply(E.check+' <b>'+b.ticker+'</b> updated! Render redeploys in ~1 min.',{parse_mode:'HTML'});}
     catch(e){delete editSessions[uid];return ctx.reply(E.xmark+' Failed: '+e.message);}
   }
+  // addbot wizard
+  var abs=addBotSessions[uid];
+  if(abs){
+    try{await ctx.deleteMessage();}catch(_){}
+    if(abs.lastMsgId){try{await ctx.telegram.deleteMessage(ctx.chat.id,abs.lastMsgId);}catch(_){}abs.lastMsgId=null;}
+    if(abs.step==='ticker'){
+      abs.data.ticker=text.startsWith('$')?text:'$'+text;
+      abs.step='chain';
+      var m=await ctx.reply('Step 2/4 \u2014 Chain?  bsc  or  sol',{parse_mode:'HTML'});
+      abs.lastMsgId=m.message_id;return;
+    }
+    if(abs.step==='chain'){
+      abs.data.chain=/sol/i.test(text)?'sol':'bsc';
+      abs.step='url';
+      var m=await ctx.reply('Step 3/4 \u2014 Render URL?\n<i>e.g. https://pecker-bot-xxxx.onrender.com</i>',{parse_mode:'HTML'});
+      abs.lastMsgId=m.message_id;return;
+    }
+    if(abs.step==='url'){
+      abs.data.url=text.trim().replace(/\/+$/,'');
+      abs.step='mode';
+      var m=await ctx.reply('Step 4/4 \u2014 Mode?  full  or  guard',{parse_mode:'HTML'});
+      abs.lastMsgId=m.message_id;return;
+    }
+    if(abs.step==='mode'){
+      abs.data.mode=/guard/i.test(text)?'guard':'full';
+      var entry={ticker:abs.data.ticker,chain:abs.data.chain,mode:abs.data.mode,url:abs.data.url,repoName:'',ghOwner:GH_OWNER,data:{},builtAt:Date.now()};
+      botRegistry.push(entry);
+      saveRegistry();
+      delete addBotSessions[uid];
+      return ctx.reply(
+        E.check+' <b>'+abs.data.ticker+'</b> registered!\n\n'+
+        'Use /stats to check health or /bots to see all bots.',
+        {parse_mode:'HTML'}
+      );
+    }
+    delete addBotSessions[uid];return;
+  }
+
   var s=sessions[uid];
   if(!s)return ctx.reply('Use /build to start, or /help for commands.');
   try{await ctx.deleteMessage();}catch(_){}
