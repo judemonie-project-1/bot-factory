@@ -6,7 +6,9 @@
     "url": "https://mpc-bot-31hk.onrender.com",
     "repoName": "",
     "ghOwner": "judemonie-project-1",
-    "data": {},
+    "data": {
+      "status": "cto"
+    },
     "builtAt": 1775600680771
   }
 ]
