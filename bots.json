@@ -31,6 +31,29 @@
       "renderUrl": "https://mpc-bot-31hk.onrender.com",
       "repoName": "mpc-bot-31hk"
     },
-    "builtAt": 1775604179857
+    "builtAt": 1775604179857,
+    "d": {
+      "chain": "bsc",
+      "mode": "full",
+      "status": "cto",
+      "guardType": "standard",
+      "personality": "hype",
+      "responseMode": "conversational",
+      "name": "mubarak pfp on chain",
+      "ticker": "$Mpc",
+      "ca": "0x5794FF15f6bd01Eaa25DB48353886810467B0D1D",
+      "twitter": "https://x.com/Mpc_cto",
+      "narrative": "Mubarak PFP ☪️\nWhere Middle Eastern legend meets pixel-powered meme energy.\nBorn from culture, rising with community, and blessed with barakah.",
+      "supply": "N/A",
+      "buyTax": "0",
+      "sellTax": "0",
+      "maxWalletPct": "N/A",
+      "renounced": "RENOUNCED",
+      "locked": "LOCKED",
+      "revealCmd": "",
+      "hideCmd": "",
+      "renderUrl": "https://mpc-bot-31hk.onrender.com",
+      "repoName": "mpc-bot-31hk"
+    }
   }
 ]
