@@ -9,10 +9,11 @@
     "data": {
       "chain": "bsc",
       "mode": "full",
+      "guardType": "standard",
       "status": "cto",
       "personality": "hype",
-      "tokenName": "MPC",
-      "ticker": "$MPC",
+      "tokenName": "Mpc",
+      "ticker": "$Mpc",
       "ca": "0x5794FF15f6bd01Eaa25DB48353886810467B0D1D",
       "supply": "1,000,000,000",
       "maxWalletPct": "",
