@@ -10,7 +10,8 @@
       "status": "cto",
       "ticker": "$Mpc",
       "mode": "full",
-      "twitter": "https://x.com/Mpc_cto"
+      "twitter": "https://x.com/Mpc_cto",
+      "personality": "Alpha"
     },
     "builtAt": 1775604179857
   }
