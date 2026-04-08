@@ -9,7 +9,8 @@
     "data": {
       "status": "cto",
       "ticker": "$Mpc",
-      "mode": "full"
+      "mode": "full",
+      "twitter": "https://x.com/Mpc_cto"
     },
     "builtAt": 1775604179857
   }
