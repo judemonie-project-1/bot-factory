@@ -131,7 +131,7 @@ async function loadRegistry() {
 // BUILD WIZARD STEPS
 // 
 var BUILD_STEPS = [
-  'chain', 'mode', 'guardtype', 'status', 'personality',
+  'chain', 'mode', 'status', 'personality',
   'name', 'ticker', 'ca', 'supply', 'maxwallet', 'taxes',
   'twitter', 'website', 'renounced', 'locked', 'narrative',
   'image', 'bottoken',
@@ -171,7 +171,7 @@ function newSession(isAddbot) {
     isAddbot: !!isAddbot,
     lastBotMsgId: null,
     data: {
-      chain:'bsc', mode:'full', guardType:'standard', status:'launch', personality:'alpha',
+      chain:'bsc', mode:'full', guardType:'standard', status:'launch', personality:'alpha', responseMode:'focused',
       tokenName:'', ticker:'', ca:'', supply:'',
       maxWalletPct:'', maxWalletTokens:'', buyTax:'', sellTax:'',
       twitter:'', website:'', renounced:'', locked:'', narrative:'',
@@ -234,6 +234,7 @@ function buildSummary(s) {
     '<b>Mode:</b> ' + (d.mode === 'guard' ? E.shield + ' Guard' : E.robot + ' Full') + '\n' +
     '<b>Status:</b> ' + (d.status === 'cto' ? E.shield + ' CTO' : E.rocket + ' Active dev') + '\n' +
     '<b>Personality:</b> ' + (PERS_LABELS[d.personality] || d.personality) + '\n' +
+    '<b>Response mode:</b> ' + (d.responseMode === 'conversational' ? '\u{1F4AC} Conversational' : '\u{1F3AF} Focused') + '\n' +
     '<b>Token:</b> ' + d.tokenName + ' ' + d.ticker + '\n' +
     '<b>CA:</b> <code>' + d.ca + '</code>\n' +
     '<b>Supply:</b> ' + d.supply + '\n' +
@@ -413,6 +414,30 @@ bot.command('stats', async function(ctx) {
   return ctx.reply(msg, { parse_mode: 'HTML', disable_web_page_preview: true });
 });
 
+bot.command('rebuild', async function(ctx) {
+  var eligible = botRegistry.filter(function(b) { return b.repoName && b.ghOwner && b.data && b.data.ticker; });
+  if (!eligible.length) return ctx.reply(E.wrench + ' No bots with full data. Use /addbot first.');
+  var kb = eligible.map(function(b) {
+    var i = botRegistry.indexOf(b);
+    return [{ text: b.ticker + ' (' + (b.chain||'bsc').toUpperCase() + ')', callback_data: 'rbd_bot_' + i }];
+  });
+  return ctx.reply(E.gear + ' <b>Full rebuild</b>\nRegenerates bot from stored data.', { parse_mode: 'HTML', reply_markup: { inline_keyboard: kb } });
+});
+
+bot.action(/^rbd_bot_(\d+)$/, async function(ctx) {
+  await ctx.answerCbQuery();
+  try { await ctx.deleteMessage(); } catch(_) {}
+  var b = botRegistry[parseInt(ctx.match[1])];
+  if (!b || !b.repoName || !b.ghOwner) return ctx.reply(E.xmark + ' Bot not found or no repo linked.');
+  await ctx.reply(E.gear + ' Rebuilding <b>' + b.ticker + '</b>...', { parse_mode: 'HTML' });
+  try {
+    var code = generateBotCode(b.data, CHAIN_INFO[b.chain]||CHAIN_INFO.bsc, b.mode);
+    await githubPushFileUpdate(b.ghOwner, b.repoName, 'bot.js', Buffer.from(code));
+    await githubPushFileUpdate(b.ghOwner, b.repoName, 'package.json', Buffer.from(generatePackageJson(b.data.tokenName, b.mode)));
+    return ctx.reply(E.check + ' <b>' + b.ticker + '</b> fully rebuilt!\nRender redeploys in ~1 min.', { parse_mode: 'HTML' });
+  } catch(e) { return ctx.reply(E.xmark + ' Failed: ' + e.message); }
+});
+
 bot.command('edit', async function(ctx) {
   if (!botRegistry.length) return ctx.reply(E.wrench + ' No bots to edit.');
   var kb = botRegistry.map(function(b, i) {
@@ -522,6 +547,16 @@ bot.action('manual_taxes', async function(ctx) {
   s.lastBotMsgId = m.message_id;
 });
 
+bot.action(/^bld_guardtype_(standard|strict|soft)_(.+)$/, async function(ctx) {
+  await ctx.answerCbQuery();
+  var uid = ctx.match[2], s = sessions[uid];
+  if (!s) return ctx.reply(E.xmark + ' Session expired.');
+  s.data.guardType = ctx.match[1];
+  s.step = 'status';
+  try { await ctx.deleteMessage(); } catch(_) {}
+  await sendStep(ctx, s, 'Project status:', statusButtons(uid));
+});
+
 bot.action(/^bld_chain_(bsc|sol)_(.+)$/, async function(ctx) {
   await ctx.answerCbQuery();
   var uid = ctx.match[2], s = sessions[uid];
@@ -530,17 +565,6 @@ bot.action(/^bld_chain_(bsc|sol)_(.+)$/, async function(ctx) {
   s.step = 'mode';
   try { await ctx.deleteMessage(); } catch(_) {}
   await sendStep(ctx, s, (s.isAddbot ? E.wrench + ' Register bot \u2014 Step 2\n\n' : E.rocket + ' New bot \u2014 Step 2\n\n') + 'Bot mode:', modeButtons(uid));
-});
-
-bot.action(/^bld_guardtype_(standard|strict|soft)_(.+)$/, async function(ctx) {
-  await ctx.answerCbQuery();
-  var uid = ctx.match[2], s = sessions[uid];
-  if (!s) return ctx.reply(E.xmark + ' Session expired. Start again.');
-  s.data.guardType = ctx.match[1];
-  s.step = 'status';
-  try { await ctx.deleteMessage(); } catch(_) {}
-  var m = await ctx.reply(E.star + ' Project status:', { parse_mode: 'HTML', reply_markup: statusButtons(uid) });
-  s.lastBotMsgId = m.message_id;
 });
 
 bot.action(/^bld_mode_(full|guard)_(.+)$/, async function(ctx) {
@@ -555,8 +579,8 @@ bot.action(/^bld_mode_(full|guard)_(.+)$/, async function(ctx) {
       E.shield + ' <b>Guard type?</b>\n\nHow strict should moderation be?',
       { parse_mode: 'HTML', reply_markup: { inline_keyboard: [
         [{ text: '\u26A1 Standard \u2014 3 warnings then 24hr mute', callback_data: 'bld_guardtype_standard_' + uid }],
-        [{ text: '\u{1F6AB} Strict \u2014 1 strike = immediate 24hr mute', callback_data: 'bld_guardtype_strict_' + uid }],
-        [{ text: '\u{1F9F9} Soft \u2014 delete messages only, no mutes', callback_data: 'bld_guardtype_soft_' + uid }],
+        [{ text: '\u{1F6AB} Strict \u2014 1 strike = 24hr mute', callback_data: 'bld_guardtype_strict_' + uid }],
+        [{ text: '\u{1F9F9} Soft \u2014 delete only, no mutes', callback_data: 'bld_guardtype_soft_' + uid }],
       ]}}
     );
     s.lastBotMsgId = mg.message_id;
@@ -586,6 +610,23 @@ bot.action(/^bld_pers_(alpha|professional|hype|community)_(.+)$/, async function
   var uid = ctx.match[2], s = sessions[uid];
   if (!s) return ctx.reply(E.xmark + ' Session expired.');
   s.data.personality = ctx.match[1];
+  s.step = 'responsemode';
+  try { await ctx.deleteMessage(); } catch(_) {}
+  var m = await ctx.reply(
+    E.robot + ' <b>Response mode?</b>\n\nHow active should the bot be in group conversations?',
+    { parse_mode: 'HTML', reply_markup: { inline_keyboard: [
+      [{ text: '\u{1F4AC} Conversational \u2014 responds to questions, mentions & hype', callback_data: 'bld_rmode_conversational_' + uid }],
+      [{ text: '\u{1F3AF} Focused \u2014 only responds to direct project questions', callback_data: 'bld_rmode_focused_' + uid }],
+    ]}}
+  );
+  s.lastBotMsgId = m.message_id;
+});
+
+bot.action(/^bld_rmode_(conversational|focused)_(.+)$/, async function(ctx) {
+  await ctx.answerCbQuery();
+  var uid = ctx.match[2], s = sessions[uid];
+  if (!s) return ctx.reply(E.xmark + ' Session expired.');
+  s.data.responseMode = ctx.match[1];
   s.step = 'name';
   try { await ctx.deleteMessage(); } catch(_) {}
   await sendStep(ctx, s, BUILD_ASKS.name);
@@ -739,19 +780,19 @@ bot.action(/^edit_pick_(\d+)$/, async function(ctx) {
   editSessions[uid] = { botIdx: i };
   var ctoLabel = (b.data && b.data.status === 'cto') ? E.rocket + ' Switch to Launch mode' : E.shield + ' Switch to CTO mode';
   var modeLabel = b.mode === 'guard' ? E.robot + ' Switch to Full bot (AI)' : E.shield + ' Switch to Guard mode';
-  var gtCurrent = (b.data && b.data.guardType) || 'standard';
-  var gtLabel = E.gear + ' Guard type: ' + gtCurrent + ' (tap to change)';
-  var persLabel = E.star + ' Personality: ' + ((b.data && b.data.personality) || 'alpha') + ' (tap to change)';
+  var gtLabel = E.gear + ' Guard type: ' + ((b.data && b.data.guardType) || 'standard') + ' (change)';
+  var persLabel = E.star + ' Personality: ' + ((b.data && b.data.personality) || 'alpha') + ' (change)';
   var kb = [
-    [{ text: 'Twitter/X link',      callback_data: 'ef_twitter_'     + i }],
-    [{ text: 'Website',             callback_data: 'ef_website_'     + i }],
-    [{ text: 'Narrative',           callback_data: 'ef_narrative_'   + i }],
-    [{ text: persLabel,             callback_data: 'ef_personality_' + i }],
-    [{ text: 'Bot image',           callback_data: 'ef_image_'       + i }],
-    [{ text: ctoLabel,              callback_data: 'ef_cto_'         + i }],
-    [{ text: modeLabel,             callback_data: 'ef_mode_'        + i }],
+    [{ text: 'Twitter/X link',    callback_data: 'ef_twitter_'     + i }],
+    [{ text: 'Website',           callback_data: 'ef_website_'     + i }],
+    [{ text: 'Narrative',         callback_data: 'ef_narrative_'   + i }],
+    [{ text: persLabel,           callback_data: 'ef_personality_' + i }],
+    [{ text: 'Bot image',         callback_data: 'ef_image_'       + i }],
+    [{ text: ctoLabel,            callback_data: 'ef_cto_'         + i }],
+    [{ text: '\u{1F4AC} Response mode: ' + ((b.data && b.data.responseMode) || 'focused') + ' (change)', callback_data: 'ef_rmode_' + i }],
+    [{ text: modeLabel,           callback_data: 'ef_mode_'        + i }],
     ...(b.mode === 'guard' ? [[{ text: gtLabel, callback_data: 'ef_guardtype_' + i }]] : []),
-    [{ text: E.xmark + ' Cancel',   callback_data: 'edit_cancel'        }],
+    [{ text: E.xmark + ' Cancel', callback_data: 'edit_cancel'        }],
   ];
   try { await ctx.deleteMessage(); } catch(_) {}
   return ctx.reply(E.wrench + ' <b>Edit ' + b.ticker + '</b>\nWhat to change?', { parse_mode: 'HTML', reply_markup: { inline_keyboard: kb } });
@@ -825,29 +866,24 @@ bot.action(/^ef_cto_(\d+)$/, async function(ctx) {
   return ctx.reply(E.check + ' Status updated. Use /rebuild to push.', { parse_mode: 'HTML' });
 });
 
-// Switch mode (full <-> guard)
 bot.action(/^ef_mode_(\d+)$/, async function(ctx) {
   await ctx.answerCbQuery();
   var i = parseInt(ctx.match[1]);
   var b = botRegistry[i]; if (!b) return ctx.reply('Bot not found.');
   try { await ctx.deleteMessage(); } catch(_) {}
-  b.mode = b.mode === 'guard' ? 'full' : 'guard';
-  b.data = b.data || {};
-  await ctx.reply(E.gear + ' Switching mode to <b>' + (b.mode === 'guard' ? 'Guard' : 'Full bot') + '</b>...', { parse_mode: 'HTML' });
+  b.mode = b.mode === 'guard' ? 'full' : 'guard'; b.data = b.data || {};
+  await ctx.reply(E.gear + ' Switching mode...');
   if (b.repoName && b.ghOwner) {
     try {
-      var code = generateBotCode(b.data, CHAIN_INFO[b.chain] || CHAIN_INFO.bsc, b.mode);
-      await githubPushFileUpdate(b.ghOwner, b.repoName, 'bot.js', Buffer.from(code));
+      await githubPushFileUpdate(b.ghOwner, b.repoName, 'bot.js', Buffer.from(generateBotCode(b.data, CHAIN_INFO[b.chain]||CHAIN_INFO.bsc, b.mode)));
       await githubPushFileUpdate(b.ghOwner, b.repoName, 'package.json', Buffer.from(generatePackageJson(b.data.tokenName, b.mode)));
       saveRegistry();
-      return ctx.reply(E.check + ' <b>' + b.ticker + '</b> switched to <b>' + (b.mode === 'guard' ? 'Guard' : 'Full bot') + '</b>\nRender redeploys in ~1 min.', { parse_mode: 'HTML' });
+      return ctx.reply(E.check + ' <b>' + b.ticker + '</b> switched to <b>' + (b.mode==='guard'?'Guard':'Full bot') + '</b>\nRender redeploys in ~1 min.', {parse_mode:'HTML'});
     } catch(e) { return ctx.reply(E.xmark + ' Failed: ' + e.message); }
   }
-  saveRegistry();
-  return ctx.reply(E.check + ' Mode updated. Use /rebuild to push.', { parse_mode: 'HTML' });
+  saveRegistry(); return ctx.reply(E.check + ' Mode updated. Use /rebuild to push.', {parse_mode:'HTML'});
 });
 
-// Change guard type
 bot.action(/^ef_guardtype_(\d+)$/, async function(ctx) {
   await ctx.answerCbQuery();
   var i = parseInt(ctx.match[1]);
@@ -855,8 +891,8 @@ bot.action(/^ef_guardtype_(\d+)$/, async function(ctx) {
   try { await ctx.deleteMessage(); } catch(_) {}
   return ctx.reply(E.shield + ' Choose guard type:', { parse_mode: 'HTML', reply_markup: { inline_keyboard: [
     [{ text: '\u26A1 Standard \u2014 3 warnings then 24hr mute', callback_data: 'egt_standard_' + i }],
-    [{ text: '\u{1F6AB} Strict \u2014 1 strike = immediate 24hr mute', callback_data: 'egt_strict_' + i }],
-    [{ text: '\u{1F9F9} Soft \u2014 delete only, no mutes', callback_data: 'egt_soft_' + i }],
+    [{ text: '\u{1F6AB} Strict \u2014 1 strike = 24hr mute',    callback_data: 'egt_strict_'   + i }],
+    [{ text: '\u{1F9F9} Soft \u2014 delete only, no mutes',     callback_data: 'egt_soft_'     + i }],
     [{ text: E.xmark + ' Cancel', callback_data: 'edit_cancel' }],
   ]}});
 });
@@ -870,14 +906,44 @@ bot.action(/^egt_(standard|strict|soft)_(\d+)$/, async function(ctx) {
   await ctx.reply(E.gear + ' Updating guard type...');
   if (b.repoName && b.ghOwner && b.mode === 'guard') {
     try {
-      var code = generateGuardBot(b.data, CHAIN_INFO[b.chain] || CHAIN_INFO.bsc);
+      await githubPushFileUpdate(b.ghOwner, b.repoName, 'bot.js', Buffer.from(generateGuardBot(b.data, CHAIN_INFO[b.chain]||CHAIN_INFO.bsc)));
+      saveRegistry();
+      return ctx.reply(E.check + ' Guard type set to <b>' + gt + '</b>\nRender redeploys in ~1 min.', {parse_mode:'HTML'});
+    } catch(e) { return ctx.reply(E.xmark + ' Failed: ' + e.message); }
+  }
+  saveRegistry(); return ctx.reply(E.check + ' Guard type saved. Use /rebuild to push.', {parse_mode:'HTML'});
+});
+
+bot.action(/^ef_rmode_(\d+)$/, async function(ctx) {
+  await ctx.answerCbQuery();
+  var i = parseInt(ctx.match[1]);
+  var b = botRegistry[i]; if (!b) return ctx.reply('Bot not found.');
+  try { await ctx.deleteMessage(); } catch(_) {}
+  var cur = (b.data && b.data.responseMode) || 'focused';
+  return ctx.reply('\u{1F4AC} Response mode (current: <b>' + cur + '</b>):', { parse_mode: 'HTML', reply_markup: { inline_keyboard: [
+    [{ text: '\u{1F4AC} Conversational \u2014 questions, mentions & hype', callback_data: 'ermode_conversational_' + i }],
+    [{ text: '\u{1F3AF} Focused \u2014 direct project questions only', callback_data: 'ermode_focused_' + i }],
+    [{ text: E.xmark + ' Cancel', callback_data: 'edit_cancel' }],
+  ]}});
+});
+
+bot.action(/^ermode_(conversational|focused)_(\d+)$/, async function(ctx) {
+  await ctx.answerCbQuery();
+  var mode = ctx.match[1], i = parseInt(ctx.match[2]);
+  var b = botRegistry[i]; if (!b) return ctx.reply('Bot not found.');
+  b.data = b.data || {}; b.data.responseMode = mode;
+  try { await ctx.deleteMessage(); } catch(_) {}
+  await ctx.reply(E.gear + ' Updating response mode...');
+  if (b.repoName && b.ghOwner && b.mode === 'full') {
+    try {
+      var code = generateFullBot(b.data, CHAIN_INFO[b.chain] || CHAIN_INFO.bsc);
       await githubPushFileUpdate(b.ghOwner, b.repoName, 'bot.js', Buffer.from(code));
       saveRegistry();
-      return ctx.reply(E.check + ' Guard type set to <b>' + gt + '</b>\nRender redeploys in ~1 min.', { parse_mode: 'HTML' });
+      return ctx.reply(E.check + ' Response mode set to <b>' + mode + '</b>\nRender redeploys in ~1 min.', { parse_mode: 'HTML' });
     } catch(e) { return ctx.reply(E.xmark + ' Failed: ' + e.message); }
   }
   saveRegistry();
-  return ctx.reply(E.check + ' Guard type saved. Use /rebuild to push.', { parse_mode: 'HTML' });
+  return ctx.reply(E.check + ' Response mode saved. Use /rebuild to push.', { parse_mode: 'HTML' });
 });
 
 bot.action('edit_cancel', async function(ctx) {
@@ -1208,6 +1274,10 @@ function generateGuardBot(d, ci) {
   ln("var TWITTER='" + TWITTER + "';");
   ln("var WEBSITE='" + WEBSITE + "';");
   ln("var IS_CTO=" + (IS_CTO ? 'true' : 'false') + ";");
+  ln("var RESPONSE_MODE='" + (d.responseMode||'focused') + "';" );
+  ln("var SHOUTOUT_ENABLED=false,shoutoutTimer=null;");
+  ln("var SHOUTOUT_TIMES=[" + [3,5,8,11,14,17,20,22].map(function(h){return h*3600000;}).join(",") + "];");
+
   ln("var E={lock:'\\u{1F512}',check:'\\u2705',copy:'\\u{1F4CB}',chart:'\\u{1F4C8}',money:'\\u{1F4B0}',gem:'\\u{1F48E}',shield:'\\u{1F6E1}',wave:'\\u{1F44B}'};");
   ln("var bot=new Telegraf(BOT_TOKEN);");
   ln("var app=express();");
@@ -1226,25 +1296,7 @@ function generateGuardBot(d, ci) {
   ln("function autoDelete(chatId,msgId,delay){setTimeout(function(){try{bot.telegram.deleteMessage(chatId,msgId);}catch(_){}},delay);}");
   ln("async function isAdmin(ctx,uid){var t=ctx.chat&&ctx.chat.type;if(t!=='group'&&t!=='supergroup')return false;try{var m=await ctx.telegram.getChatMember(ctx.chat.id,uid);return m.status==='administrator'||m.status==='creator';}catch(_){return false;}}");
   ln("function getStrike(uid){var now=Date.now(),s=strikes.get(uid);if(!s||now-s.since>STRIKE_RESET){s={count:0,since:now};strikes.set(uid,s);}return s;}");
-  ln("var GUARD_TYPE='" + (d.guardType||"standard") + "';")
-  ln("async function applyStrike(ctx,uid,reason){")
-  ln("  var s=getStrike(uid);try{await ctx.deleteMessage();}catch(_){}")
-  ln("  var why=reason?'  ('+reason+')':'';var member=ctx.message&&ctx.message.from;")
-  ln("  var tag=member&&member.username?'@'+member.username:(member&&member.first_name?member.first_name:'user');")
-  ln("  if(GUARD_TYPE==='soft'){return;}")
-  ln("  if(GUARD_TYPE==='strict'){")
-  ln("    try{await ctx.telegram.restrictChatMember(ctx.chat.id,uid,{permissions:{can_send_messages:false},until_date:Math.floor(Date.now()/1000)+86400});}catch(_){}")
-  ln("    var ms=await ctx.reply('\\u26A0\\uFE0F '+tag+' muted 24h'+why+'.');autoDelete(ctx.chat.id,ms.message_id,45000);return;")
-  ln("  }")
-  ln("  s.count++;")
-  ln("  if(s.count>=3){")
-  ln("    s.count=0;")
-  ln("    try{await ctx.telegram.restrictChatMember(ctx.chat.id,uid,{permissions:{can_send_messages:false},until_date:Math.floor(Date.now()/1000)+86400});}catch(_){}")
-  ln("    var m3=await ctx.reply('\\u26A0\\uFE0F '+tag+' muted 24h \\u2014 3 strikes'+why+'.');autoDelete(ctx.chat.id,m3.message_id,60000);")
-  ln("  }else{")
-  ln("    var mw=await ctx.reply('\\u26A0\\uFE0F '+tag+' warning '+s.count+'/3'+why);autoDelete(ctx.chat.id,mw.message_id,45000);")
-  ln("  }")
-  ln("}")
+  ln("async function applyStrike(ctx,uid,reason){var s=getStrike(uid);s.count++;try{await ctx.deleteMessage();}catch(_){}var why=reason?' ('+reason+')':'';if(s.count>=3){s.count=0;try{await ctx.telegram.restrictChatMember(ctx.chat.id,uid,{permissions:{can_send_messages:false},until_date:Math.floor(Date.now()/1000)+300});}catch(_){}var m3=await ctx.reply('\\u26A0\\uFE0F Muted 5 min \\u2014 3 strikes'+why+'.');autoDelete(ctx.chat.id,m3.message_id,12000);}else{var m=await ctx.reply('\\u26A0\\uFE0F Warning '+s.count+'/3'+why);autoDelete(ctx.chat.id,m.message_id,10000);}}");
   ln("async function checkSpam(ctx,uid){var now=Date.now(),t=spamTracker.get(uid)||{count:0,since:now};if(now-t.since>SPAM_WINDOW)t={count:0,since:now};t.count++;spamTracker.set(uid,t);if(t.count>SPAM_MAX){try{await ctx.telegram.restrictChatMember(ctx.chat.id,uid,{permissions:{can_send_messages:false},until_date:Math.floor(Date.now()/1000)+300});}catch(_){}var m=await ctx.reply('Muted 5 min for spam.');autoDelete(ctx.chat.id,m.message_id,15000);return true;}return false;}");
   ln("var FUD=['rug','rugpull','scam','ponzi','honeypot','shit','fuck','bitch','bastard','asshole','cunt','retard','idiot','dump','dumping','dead','worthless','trash','garbage','fake','fraud','exit scam','dev ran','dev is gone','abandoned'];");
   ln("function hasFud(t){var l=t.toLowerCase();return FUD.some(function(w){return l.includes(w);});}");
@@ -1253,7 +1305,7 @@ function generateGuardBot(d, ci) {
   ln("function hasExtMention(t){if(!t)return false;var mm=t.match(/@[a-zA-Z0-9_]+/g)||[];if(mm.length>1)return true;if(mm.length===1){var idx=t.indexOf(mm[0]);if(idx>0)return true;}return false;}");
   ln("var notLiveMsgs=['" + TICKER + " hasn\\u2019t launched yet. CA coming soon.','Hold tight \\u2014 launch is close.','Not yet. Stay ready.','CA drops soon.'];");
   ln("var socialsIdx=0;");
-  ln("function buildSocials(){var i=socialsIdx%3;socialsIdx++;var web=WEBSITE?'\\n<a href=\\\''+WEBSITE+'\\\'>Website</a>':'';if(i===0)return'<b>" + TICKER + " Links</b>\\n\\n<a href=\\''+CHART+'\\'>Chart</a> | <a href=\\''+BUY+'\\'>" + DEX_NAME + "</a> | <a href=\\''+TWITTER+'\\'>Twitter</a>'+web;if(i===1)return E.chart+' <a href=\\''+CHART+'\\'>Chart</a>  '+E.money+' <a href=\\''+BUY+'\\'>" + DEX_NAME + "</a>  <a href=\\''+TWITTER+'\\'>Twitter/X</a>'+web;return'<a href=\\''+CHART+'\\'>DexScreener</a>  <a href=\\''+BUY+'\\'>" + DEX_NAME + "</a>  <a href=\\''+TWITTER+'\\'>X</a>'+(WEBSITE?' <a href=\\''+WEBSITE+'\\'>Site</a>':'');}");
+  ln("function buildSocials(){var i=socialsIdx%3;socialsIdx++;var web=WEBSITE?'\\n\\u{1F310} <a href=\\''+WEBSITE+'\\'>Website</a>':'';if(i===0)return'<b>" + TICKER + " Links</b>\\n\\n<a href=\\''+CHART+'\\'>Chart</a> | <a href=\\''+BUY+'\\'>" + DEX_NAME + "</a> | <a href=\\''+TWITTER+'\\'>Twitter</a>'+web;if(i===1)return E.chart+' <a href=\\''+CHART+'\\'>Chart</a>  '+E.money+' <a href=\\''+BUY+'\\'>" + DEX_NAME + "</a>  <a href=\\''+TWITTER+'\\'>Twitter/X</a>'+web;return'<a href=\\''+CHART+'\\'>DexScreener</a>  <a href=\\''+BUY+'\\'>" + DEX_NAME + "</a>  <a href=\\''+TWITTER+'\\'>X</a>'+(WEBSITE?' <a href=\\''+WEBSITE+'\\'>Site</a>':'');}");
   ln("function buildInfoReply(topic){");
   ln("  if(topic==='ca'){if(!caUnlocked)return{text:notLiveMsgs[Math.floor(Math.random()*notLiveMsgs.length)],kb:null};return{text:CA+'\\n\\n'+E.lock+' " + RENOUNCED + " '+E.check+' LP " + LOCKED + "',kb:{inline_keyboard:[[{text:E.copy+' Copy CA',copy_text:{text:CA}}]]}};}");
   ln("  if(topic==='x')return{text:'" + TICKER + " on X',kb:{inline_keyboard:[[{text:'Follow on X',url:TWITTER}]]}};");
@@ -1270,6 +1322,32 @@ function generateGuardBot(d, ci) {
   ln("  return null;");
   ln("}");
   ln("function detectTopic(lower){if(['ca','contract','contract address','token address','where is the ca','whats the ca','what is the ca','give ca','drop ca','show ca'].some(function(w){return lower===w||lower.includes(w);}))return'ca';if(lower==='x'||lower==='twitter'||lower.includes('twitter link')||lower.includes('follow on'))return'x';if(lower.includes('tax')||lower.includes('buy tax')||lower.includes('sell tax'))return'tax';if(lower.includes('max wallet')||lower.includes('maxwallet')||lower.includes('max hold'))return'maxwallet';if(lower.includes('renounced')||lower.includes('contract lock'))return'renounced';if(lower.includes(' lp ')||lower.includes('liquidity')||lower.includes('lp locked')||lower==='lp')return'locked';if(lower.includes('supply')||lower.includes('total supply'))return'supply';if(lower==='socials'||lower==='links'||lower.includes('website'))return'socials';if(lower.includes('dev')||lower.includes('team')||lower.includes('cto')||lower.includes('who run')||lower.includes('who own'))return'dev';return null;}");
+    ln("async function doShoutout(){");
+  ln("  if(!groupChatId||!SHOUTOUT_ENABLED)return;");
+  ln("  try{var admins=await bot.telegram.getChatAdministrators(groupChatId);");
+  ln("  var human=admins.filter(function(a){return!a.user.is_bot;});");
+  ln("  var names=human.map(function(a){return a.user.username?'@'+a.user.username:a.user.first_name;});");
+  ln("  if(!names.length){scheduleNextShoutout();return;}");
+  ln("  var ppt='1-2 warm lines. Shoutout to the admins keeping ' + TICKER + ' alive: '+names.join(', ')+'. Sound genuine. Tag them by name.'");
+  ln("  var msg=await smartAsk(systemPrompt(caUnlocked),ppt);");
+  ln("  if(msg&&msg!=='IGNORE'){var sm=await bot.telegram.sendMessage(groupChatId,msg,{parse_mode:'HTML'});setTimeout(function(){try{bot.telegram.deleteMessage(groupChatId,sm.message_id);}catch(_){}},7200000);}");
+  ln("  }catch(_){}scheduleNextShoutout();");
+  ln("}");
+  ln("function scheduleNextShoutout(){");
+  ln("  if(shoutoutTimer)clearTimeout(shoutoutTimer);if(!SHOUTOUT_ENABLED||!groupChatId)return;");
+  ln("  var slots=[21600000,43200000,61200000,75600000];");
+  ln("  var now=Date.now()%86400000;");
+  ln("  var next=slots.find(function(t){return t>now;});var wait=next!==undefined?next-now:(86400000-now+slots[0]);wait+=Math.floor(Math.random()*1800000);");
+  ln("  shoutoutTimer=setTimeout(doShoutout,wait);");
+  ln("}");
+  ln("bot.command('shoutout',async function(ctx){");
+  ln("  var admin=await isAdmin(ctx,ctx.from.id);if(!admin)return;");
+  ln("  var arg=(ctx.message.text||'').split(' ')[1]||'';");
+  ln("  if(arg.toLowerCase()==='on'){SHOUTOUT_ENABLED=true;scheduleNextShoutout();return ctx.reply('\\u2705 Admin shoutouts enabled. Fires 2-4x daily.');}");
+  ln("  if(arg.toLowerCase()==='off'){SHOUTOUT_ENABLED=false;if(shoutoutTimer)clearTimeout(shoutoutTimer);return ctx.reply('\\u274C Admin shoutouts disabled.');}");
+  ln("  if(arg.toLowerCase()==='now'){await doShoutout();return;}");
+  ln("  return ctx.reply('Usage: /shoutout on / off / now');");
+  ln("});");
   ln("bot.on('new_chat_members',async function(ctx){if(ctx.message.new_chat_members.some(function(m){return m.is_bot;}))return;try{await ctx.deleteMessage();}catch(_){}");
   ln("  for(var i=0;i<ctx.message.new_chat_members.length;i++){");
   ln("    var mem=ctx.message.new_chat_members[i];");
@@ -1285,19 +1363,7 @@ function generateGuardBot(d, ci) {
   ln("bot.command('x',async function(ctx){var r=buildInfoReply('x');return sendImage(ctx.chat.id,r.text,{reply_markup:r.kb});});");
   ln("bot.command('twitter',async function(ctx){var r=buildInfoReply('x');return sendImage(ctx.chat.id,r.text,{reply_markup:r.kb});});");
   ln("bot.command('tax',function(ctx){return ctx.reply(buildInfoReply('tax').text);});");
-  ln("bot.command('info',function(ctx){");
-  ln("  var parts=[");
-  ln("    '<b>'+TICKER+'</b>',");
-  ln("    'Chain: " + CHAIN_LBL + "',");
-  ln("    'Supply: " + SUPPLY + "',");
-  ln("    'Max Wallet: '+(MAX_PCT||'N/A')+(MAX_TOK?' ('+MAX_TOK+')':'')+'',");
-  ln("    'Tax: '+BUY_TAX+'% buy / '+SELL_TAX+'% sell',");
-  ln("    'Contract: " + RENOUNCED + " | LP: " + LOCKED + "',");
-  ln("    'Twitter: '+TWITTER,");
-  ln("  ];");
-  ln("  return ctx.reply(parts.join('\\n'),{parse_mode:'HTML',disable_web_page_preview:true});");
-  ln("});");
-  
+  ln("bot.command('info',function(ctx){return ctx.reply('<b>" + TICKER + "</b>\\nChain: " + CHAIN_LBL + "\\nSupply: " + SUPPLY + "\\nMax Wallet: " + MAX_PCT + (MAX_TOK?' / '+MAX_TOK:'') + "\\nBuy: " + BUY_TAX + "% | Sell: " + SELL_TAX + "%\\nContract: " + RENOUNCED + "\\nLP: " + LOCKED + "',{parse_mode:'HTML'});});");
   ln("bot.command('socials',function(ctx){return ctx.reply(buildSocials(),{parse_mode:'HTML',disable_web_page_preview:true});});");
   ln("bot.command('links',function(ctx){return ctx.reply(buildSocials(),{parse_mode:'HTML',disable_web_page_preview:true});});");
   ln("bot.command('" + REVEAL + "',async function(ctx){var t=ctx.chat&&ctx.chat.type;if(t==='private'){caUnlocked=true;saveState();return ctx.reply('CA is now REVEALED.');}var admin=await isAdmin(ctx,ctx.from.id);if(!admin)return;caUnlocked=true;saveState();var m=await ctx.reply('CA is now live.');autoDelete(ctx.chat.id,m.message_id,10000);});");
@@ -1411,19 +1477,7 @@ function generateFullBot(d, ci) {
   ln("function autoDelete(chatId,msgId,delay){setTimeout(function(){try{bot.telegram.deleteMessage(chatId,msgId);}catch(_){}},delay);}");
   ln("async function isAdmin(ctx,uid){var t=ctx.chat&&ctx.chat.type;if(t!=='group'&&t!=='supergroup')return false;try{var m=await ctx.telegram.getChatMember(ctx.chat.id,uid);return m.status==='administrator'||m.status==='creator';}catch(_){return false;}}");
   ln("function getStrike(uid){var now=Date.now(),s=strikes.get(uid);if(!s||now-s.since>STRIKE_RESET){s={count:0,since:now};strikes.set(uid,s);}return s;}");
-  ln("async function applyStrike(ctx,uid,reason){")
-  ln("  var s=getStrike(uid);try{await ctx.deleteMessage();}catch(_){}")
-  ln("  var why=reason?'  ('+reason+')':'';var member=ctx.message&&ctx.message.from;")
-  ln("  var tag=member&&member.username?'@'+member.username:(member&&member.first_name?member.first_name:'user');")
-  ln("  s.count++;")
-  ln("  if(s.count>=3){")
-  ln("    s.count=0;")
-  ln("    try{await ctx.telegram.restrictChatMember(ctx.chat.id,uid,{permissions:{can_send_messages:false},until_date:Math.floor(Date.now()/1000)+86400});}catch(_){}")
-  ln("    var m3=await ctx.reply('\\u26A0\\uFE0F '+tag+' muted 24h \\u2014 3 strikes'+why+'.');autoDelete(ctx.chat.id,m3.message_id,60000);")
-  ln("  }else{")
-  ln("    var mw=await ctx.reply('\\u26A0\\uFE0F '+tag+' warning '+s.count+'/3'+why);autoDelete(ctx.chat.id,mw.message_id,45000);")
-  ln("  }")
-  ln("}")
+  ln("async function applyStrike(ctx,uid,reason){var s=getStrike(uid);s.count++;try{await ctx.deleteMessage();}catch(_){}var why=reason?' ('+reason+')':'';if(s.count>=3){s.count=0;try{await ctx.telegram.restrictChatMember(ctx.chat.id,uid,{permissions:{can_send_messages:false},until_date:Math.floor(Date.now()/1000)+300});}catch(_){}var m3=await ctx.reply('\\u26A0\\uFE0F Muted 5 min \\u2014 3 strikes'+why+'.');autoDelete(ctx.chat.id,m3.message_id,12000);}else{var m=await ctx.reply('\\u26A0\\uFE0F Warning '+s.count+'/3'+why);autoDelete(ctx.chat.id,m.message_id,10000);}}");
   ln("async function checkSpam(ctx,uid){var now=Date.now(),t=spamTracker.get(uid)||{count:0,since:now};if(now-t.since>SPAM_WINDOW)t={count:0,since:now};t.count++;spamTracker.set(uid,t);if(t.count>SPAM_MAX){try{await ctx.telegram.restrictChatMember(ctx.chat.id,uid,{permissions:{can_send_messages:false},until_date:Math.floor(Date.now()/1000)+300});}catch(_){}var m=await ctx.reply('Muted 5 min for spam.');autoDelete(ctx.chat.id,m.message_id,15000);return true;}return false;}");
   ln("var FUD=['rug','rugpull','scam','ponzi','honeypot','shit','fuck','bitch','bastard','asshole','cunt','retard','idiot','dump','dumping','dead','worthless','trash','garbage','fake','fraud','exit scam','dev ran','dev is gone','abandoned'];");
   ln("function hasFud(t){var l=t.toLowerCase();return FUD.some(function(w){return l.includes(w);});}");
@@ -1431,14 +1485,14 @@ function generateFullBot(d, ci) {
   ln("function hasTmeLink(t){return/t\\.me\\/[+a-zA-Z0-9_]+/.test(t)||/telegram\\.me\\//i.test(t);}");
   ln("function hasExtMention(t){if(!t)return false;var mm=t.match(/@[a-zA-Z0-9_]+/g)||[];if(mm.length>1)return true;if(mm.length===1){var idx=t.indexOf(mm[0]);if(idx>0)return true;}return false;}");
   ln("var notLiveMsgs=['" + TICKER + " hasn\\u2019t launched yet. CA coming soon.','Hold tight \\u2014 the drop is close.','Not yet. Stay ready.','CA drops soon.'];");
-  ln("var caPrompts=['One sharp line. Why " + TICKER + " right now. No CA.','One line. " + TICKER + " fundamentals. No CA.','One line. " + TICKER + " is worth holding. No CA.','One line. " + TICKER + " built for the long game. No CA.'];");
+  ln("var caPrompts=['2-3 confident lines. Why " + TICKER + " right now. No CA.','2-3 lines. " + TICKER + " fundamentals: renounced, locked LP. No CA.','2-3 lines. What makes " + TICKER + " worth holding. No CA.','2-3 lines. " + TICKER + " built for the long game. No CA.'];");
   ln("var caPromptIdx=0;");
-  ln("async function buildCaCaption(){var p=caPrompts[caPromptIdx%caPrompts.length];caPromptIdx++;var ai=await smartAsk(systemPrompt(true),p);return ai+\'\\\\n\\\\n\'+CA;}");
+  ln("async function buildCaCaption(){var p=caPrompts[caPromptIdx%caPrompts.length];caPromptIdx++;var ai=await smartAsk(systemPrompt(true),p);return ai+'\\n\\n'+CA+'\\n\\n'+E.lock+' " + RENOUNCED + " '+E.check+' LP " + LOCKED + "';}");
   ln("var xPrompts=['1-2 lines. " + TICKER + " on Twitter. Real energy.','1-2 lines. Why follow " + TICKER + " on X.','1-2 lines. " + TICKER + " Twitter is worth following.'];");
   ln("var xPromptIdx=0;");
-  ln("async function buildXCaption(){var p=xPrompts[xPromptIdx%xPrompts.length];xPromptIdx++;var ai=await smartAsk(systemPrompt(false),p);return ai;}");
+  ln("async function buildXCaption(){var p=xPrompts[xPromptIdx%xPrompts.length];xPromptIdx++;var ai=await smartAsk(systemPrompt(false),p);ai=ai.split(' ').filter(function(w){return w.indexOf('http')!==0;}).join(' ').trim();return ai||TICKER+' on X';}");
   ln("var socialsIdx=0;");
-  ln("function buildSocials(){var i=socialsIdx%3;socialsIdx++;var web=WEBSITE?'\\n<a href=\\\''+WEBSITE+'\\\'>Website</a>':'';if(i===0)return'<b>" + TICKER + "</b>\\n<a href=\\''+CHART+'\\'>Chart</a> | <a href=\\''+BUY+'\\'>" + DEX_NAME + "</a> | <a href=\\''+TWITTER+'\\'>Twitter</a>'+web;if(i===1)return E.chart+' <a href=\\''+CHART+'\\'>Chart</a>  '+E.money+' <a href=\\''+BUY+'\\'>" + DEX_NAME + "</a>  <a href=\\''+TWITTER+'\\'>Twitter/X</a>'+web;return'<a href=\\''+CHART+'\\'>DexScreener</a>  <a href=\\''+BUY+'\\'>" + DEX_NAME + "</a>  <a href=\\''+TWITTER+'\\'>X</a>'+(WEBSITE?' <a href=\\''+WEBSITE+'\\'>Site</a>':'');}");
+  ln("function buildSocials(){var i=socialsIdx%3;socialsIdx++;var web=WEBSITE?'\\n\\u{1F310} <a href=\\''+WEBSITE+'\\'>Website</a>':'';if(i===0)return'<b>" + TICKER + "</b>\\n<a href=\\''+CHART+'\\'>Chart</a> | <a href=\\''+BUY+'\\'>" + DEX_NAME + "</a> | <a href=\\''+TWITTER+'\\'>Twitter</a>'+web;if(i===1)return E.chart+' <a href=\\''+CHART+'\\'>Chart</a>  '+E.money+' <a href=\\''+BUY+'\\'>" + DEX_NAME + "</a>  <a href=\\''+TWITTER+'\\'>Twitter/X</a>'+web;return'<a href=\\''+CHART+'\\'>DexScreener</a>  <a href=\\''+BUY+'\\'>" + DEX_NAME + "</a>  <a href=\\''+TWITTER+'\\'>X</a>'+(WEBSITE?' <a href=\\''+WEBSITE+'\\'>Site</a>':'');}");
   ln("var devRepliesCTO=['" + TICKER + " is a CTO \\u2014 community takeover. Original dev is gone. The community now owns and runs this completely. No dev to rug. The holders are the team.','This is a CTO. Original dev walked away. The community stepped up and took full ownership of " + TICKER + ". Community power, not a dev.','No dev here \\u2014 " + TICKER + " is 100% community-owned. Original dev left. The community holds the wheel and drives this forward.','CTO project. Original dev is gone. Community took over " + TICKER + " completely. That is the strength here.'];");
   ln("var silenceAngles=['2-3 bullish lines. Why hold " + TICKER + " right now.','2-3 lines. Being early to " + TICKER + ".','2-3 lines. " + TICKER + " built clean: renounced, locked, low tax.','2-3 lines. What " + TICKER + " holders know.','2-3 lines. " + TICKER + " community is building.','2-3 lines. The move in " + TICKER + " is still early.'];");
   ln("var silenceIdx=0;");
@@ -1459,30 +1513,18 @@ function generateFullBot(d, ci) {
   ln("bot.command('x',function(ctx){return sendXReply(ctx);});");
   ln("bot.command('twitter',function(ctx){return sendXReply(ctx);});");
   ln("bot.command('ca',async function(ctx){if(!caUnlocked)return ctx.reply(notLiveMsgs[Math.floor(Math.random()*notLiveMsgs.length)]);try{var cap=await buildCaCaption();return sendImage(ctx.chat.id,cap,{reply_markup:{inline_keyboard:[[{text:E.copy+' Copy CA',copy_text:{text:CA}}]]}});}catch(_){return ctx.reply(CA);}});");
-  ln("bot.command('info',function(ctx){");
-  ln("  var parts=[");
-  ln("    '<b>'+TICKER+'</b>',");
-  ln("    'Chain: " + CHAIN_LBL + "',");
-  ln("    'Supply: " + SUPPLY + "',");
-  ln("    'Max Wallet: '+(MAX_PCT||'N/A')+(MAX_TOK?' ('+MAX_TOK+')':'')+'',");
-  ln("    'Tax: '+BUY_TAX+'% buy / '+SELL_TAX+'% sell',");
-  ln("    'Contract: " + RENOUNCED + " | LP: " + LOCKED + "',");
-  ln("    'Twitter: '+TWITTER,");
-  ln("  ];");
-  ln("  return ctx.reply(parts.join('\\n'),{parse_mode:'HTML',disable_web_page_preview:true});");
-  ln("});");
   ln("bot.command('socials',async function(ctx){return ctx.reply(buildSocials(),{parse_mode:'HTML',disable_web_page_preview:true});});");
   ln("bot.command('links',async function(ctx){return ctx.reply(buildSocials(),{parse_mode:'HTML',disable_web_page_preview:true});});");
   ln("bot.command('" + REVEAL + "',async function(ctx){var t=ctx.chat&&ctx.chat.type;if(t==='private'){caUnlocked=true;saveState();return ctx.reply('CA is now REVEALED.');}var admin=await isAdmin(ctx,ctx.from.id);if(!admin)return;caUnlocked=true;saveState();var m=await ctx.reply('CA is now live.');autoDelete(ctx.chat.id,m.message_id,10000);});");
   ln("bot.command('" + HIDE + "',async function(ctx){var t=ctx.chat&&ctx.chat.type;if(t==='private'){caUnlocked=false;saveState();return ctx.reply('CA is now HIDDEN.');}var admin=await isAdmin(ctx,ctx.from.id);if(!admin)return;caUnlocked=false;saveState();var m=await ctx.reply('CA is now hidden.');autoDelete(ctx.chat.id,m.message_id,10000);});");
-  ln("bot.on('message',async function(ctx){var msg=ctx.message;if(!msg||!ctx.from)return;var uid=ctx.from.id,chatType=ctx.chat.type;var text=(msg.text||'').trim();var isPrivate=chatType==='private';if(!isPrivate&&groupChatId!==ctx.chat.id){groupChatId=ctx.chat.id;saveState();}if(!isPrivate)resetSilence();var admin=await isAdmin(ctx,uid);if(!isPrivate&&!admin&&text){var spammed=await checkSpam(ctx,uid);if(spammed)return;stickerTracker.set(uid,0);if(msg.forward_from||msg.forward_sender_name||msg.forward_from_chat)return applyStrike(ctx,uid,'no forwards');if(hasBlockedLink(text))return applyStrike(ctx,uid,'no external links');if(hasTmeLink(text))return applyStrike(ctx,uid,'no TG invite links');if(hasExtMention(text))return applyStrike(ctx,uid,'no promoting other groups');if(hasFud(text))return applyStrike(ctx,uid,'no FUD');}if(!text)return;var lower=text.toLowerCase();var devWords=['dev','who is the dev','is dev active','dev status','dev gone','cto','community takeover','who runs','who owns','team active','team behind'];if(devWords.some(function(w){return lower.includes(w);})){if(IS_CTO)return ctx.reply(devRepliesCTO[Math.floor(Math.random()*devRepliesCTO.length)]);try{var dr=await smartAsk(systemPrompt(caUnlocked),text);if(dr&&dr!=='IGNORE')return ctx.reply(dr);}catch(_){}return;}var caWords=['ca','contract','contract address','token address','where is the ca','whats the ca','what is the ca','give ca','drop ca','show ca'];if(caWords.some(function(w){return lower===w||lower.includes(w);})){if(!caUnlocked)return ctx.reply(notLiveMsgs[Math.floor(Math.random()*notLiveMsgs.length)]);try{var cap=await buildCaCaption();return sendImage(ctx.chat.id,cap,{reply_markup:{inline_keyboard:[[{text:E.copy+' Copy CA',copy_text:{text:CA}}]]}});}catch(_){return ctx.reply(CA);}}if(lower==='x'||lower==='twitter')return sendXReply(ctx);if(lower==='socials'||lower==='links')return ctx.reply(buildSocials(),{parse_mode:'HTML',disable_web_page_preview:true});if(isPrivate){try{var dr2=await smartAsk(systemPrompt(caUnlocked),text);if(dr2!=='IGNORE')return ctx.reply(dr2);}catch(_){}return;}try{var gr=await smartAsk(systemPrompt(caUnlocked),text);if(gr&&gr!=='IGNORE')return ctx.reply(gr);}catch(_){}});");
+  ln("bot.on('message',async function(ctx){var msg=ctx.message;if(!msg||!ctx.from)return;var uid=ctx.from.id,chatType=ctx.chat.type;var text=(msg.text||'').trim();var isPrivate=chatType==='private';if(!isPrivate&&groupChatId!==ctx.chat.id){groupChatId=ctx.chat.id;saveState();}if(!isPrivate)resetSilence();var admin=await isAdmin(ctx,uid);if(!isPrivate&&!admin&&text){var spammed=await checkSpam(ctx,uid);if(spammed)return;stickerTracker.set(uid,0);if(msg.forward_from||msg.forward_sender_name||msg.forward_from_chat)return applyStrike(ctx,uid,'no forwards');if(hasBlockedLink(text))return applyStrike(ctx,uid,'no external links');if(hasTmeLink(text))return applyStrike(ctx,uid,'no TG invite links');if(hasExtMention(text))return applyStrike(ctx,uid,'no promoting other groups');if(hasFud(text))return applyStrike(ctx,uid,'no FUD');}if(!text)return;var lower=text.toLowerCase();var devWords=['dev','who is the dev','is dev active','dev status','dev gone','cto','community takeover','who runs','who owns','team active','team behind'];if(devWords.some(function(w){return lower.includes(w);})){if(IS_CTO)return ctx.reply(devRepliesCTO[Math.floor(Math.random()*devRepliesCTO.length)]);try{var dr=await smartAsk(systemPrompt(caUnlocked),text);if(dr&&dr!=='IGNORE')return ctx.reply(dr);}catch(_){}return;}var caWords=['ca','contract','contract address','token address','where is the ca','whats the ca','what is the ca','give ca','drop ca','show ca'];if(caWords.some(function(w){return lower===w||lower.includes(w);})){if(!caUnlocked)return ctx.reply(notLiveMsgs[Math.floor(Math.random()*notLiveMsgs.length)]);try{var cap=await buildCaCaption();return sendImage(ctx.chat.id,cap,{reply_markup:{inline_keyboard:[[{text:E.copy+' Copy CA',copy_text:{text:CA}}]]}});}catch(_){return ctx.reply(CA);}}if(lower==='x'||lower==='twitter')return sendXReply(ctx);if(lower==='socials'||lower==='links')return ctx.reply(buildSocials(),{parse_mode:'HTML',disable_web_page_preview:true});if(isPrivate){try{var dr2=await smartAsk(systemPrompt(caUnlocked),text);if(dr2!=='IGNORE')return ctx.reply(dr2);}catch(_){}return;}if(RESPONSE_MODE==='focused')return;if(text.indexOf('?')===-1&&text.toLowerCase().indexOf(TICKER.toLowerCase().replace('$',''))===-1)return;try{var gr=await smartAsk(systemPrompt(caUnlocked),text);if(gr&&gr!=='IGNORE')return ctx.reply(gr);}catch(_){}});");
   ln("app.post('/webhook',function(req,res){bot.handleUpdate(req.body,res);});");
   ln("app.get('/',function(req,res){res.end('OK');});");
   ln("app.get('/health',function(req,res){res.end('OK');});");
   ln("async function registerWebhook(){if(!WEBHOOK_URL)return;var url=WEBHOOK_URL+'/webhook';for(var i=0;i<5;i++){try{var ok=await bot.telegram.setWebhook(url);if(ok){console.log('Webhook:',url);return;}}catch(e){console.log('Attempt '+(i+1)+':',e.message);}await new Promise(function(r){setTimeout(r,3000);});}}");
   ln("process.on('uncaughtException',function(e){console.error('Uncaught:',e.message);});");
   ln("process.on('unhandledRejection',function(e){console.error('Rejection:',e&&e.message);});");
-  ln("app.listen(PORT,async function(){console.log('" + TICKER + " bot on port '+PORT);try{await new Promise(function(r){setTimeout(r,2000);});}catch(_){}try{await registerWebhook();}catch(e){console.log(e.message);}try{resetSilence();}catch(_){}setInterval(function(){if(WEBHOOK_URL)try{fetch(WEBHOOK_URL+'/health').catch(function(){});}catch(_){}},4*60*1000);console.log('" + TICKER + " bot live');});");
+  ln("app.listen(PORT,async function(){console.log('" + TICKER + " bot on port '+PORT);try{await new Promise(function(r){setTimeout(r,2000);});}catch(_){}try{await registerWebhook();}catch(e){console.log(e.message);}try{resetSilence();}catch(_){}try{scheduleNextShoutout();}catch(_){}setInterval(function(){if(WEBHOOK_URL)try{fetch(WEBHOOK_URL+'/health').catch(function(){});}catch(_){}},4*60*1000);console.log('" + TICKER + " bot live');});");
 
   return L.join('\n');
 }
