@@ -247,7 +247,7 @@ async function showStep(ctx,s,uid){
   if(step==='narrative')return say(ctx,s,E.pencil+' Token narrative?\n<i>1-2 sentences. What makes it unique. Used for AI personality.</i>',skipBtn(uid,'narrative'));
   if(step==='img')     return say(ctx,s,E.pencil+' Send bot image (JPG/PNG)\n<i>This is the image shown with CA and X replies</i>',skipBtn(uid,'img'));
   if(step==='bottoken')return say(ctx,s,E.pencil+' <b>BotFather token?</b>\n\n<i>1. Open @BotFather\n2. Send /newbot, enter a name and username (must end in bot)\n3. Copy the token and paste it here</i>');
-  if(step==='renderurl')return say(ctx,s,E.pencil+' <b>Render URL?</b>\n<i>e.g. https://mpc-bot-31hk.onrender.com\n(Found in your Render dashboard)</i>');
+  if(step==='renderurl')return say(ctx,s,E.pencil+' <b>Render URL?</b>\n<i>e.g. https://mpc-bot.onrender.com</i>');
   if(step==='confirm') return say(ctx,s,buildSummary(s));
 }
 
@@ -267,7 +267,7 @@ function buildSummary(s){
     '<b>LP:</b> '+d.locked+'\n'+
     (d.twitter?'<b>Twitter:</b> '+d.twitter+'\n':'')+
     '<b>Image:</b> '+(s.imgBuf?E.check+' ready':'\u2014 none')+'\n'+
-    (s.isAdd&&d.renderUrl?'<b>Render:</b> '+d.renderUrl+'\n':'')+
+    (s.isAdd&&d.renderUrl?'<b>Bot URL:</b> '+d.renderUrl+'\n':'')+
     '\nType <b>yes</b> to '+(s.isAdd?'register':'deploy')+' \u2014 <b>no</b> to cancel.';
 }
 
@@ -281,9 +281,9 @@ bot.command('start',function(ctx){
     E.gear+' <b>What happens when you build:</b>\n'+
     '\u2022 Token data auto-fetched from BSCScan + DexScreener\n'+
     '\u2022 Bot code generated with your exact details\n'+
-    '\u2022 GitHub repo created and code pushed\n'+
-    '\u2022 Deployed live on Render automatically\n'+
-    '\u2022 Cron keepalive configured\n'+
+    '\u2022 Repository created and code pushed\n'+
+    '\u2022 Bot deployed and running automatically\n'+
+    '\u2022 Always-on keepalive configured\n'+
     '\u2022 <b>Bot live in ~3 minutes. Zero manual setup.</b>\n\n'+
 
     E.shield+' <b>Two bot types:</b>\n'+
@@ -304,13 +304,13 @@ bot.command('start',function(ctx){
     '/rebuild \u2014 Full rebuild from stored data\n'+
     '/update \u2014 Push latest factory improvements\n'+
     '/stats \u2014 Health check all bots\n'+
-    '/addgroq \u2014 Add Groq AI key\n'+
+    '/addgroq \u2014 Add AI key\n'+
     '/cancel \u2014 Cancel current operation',
     {parse_mode:'HTML'}
   );
 });
 bot.command('cancel',function(ctx){var uid=String(ctx.from.id);delete sessions[uid];delete editSessions[uid];return ctx.reply(E.xmark+' Cancelled.');});
-bot.command('addgroq',async function(ctx){var uid=String(ctx.from.id);groqSessions[uid]=true;try{await ctx.deleteMessage();}catch(_){}return ctx.reply(E.gear+' Send your Groq API key and it will be added automatically:');});
+bot.command('addgroq',async function(ctx){var uid=String(ctx.from.id);groqSessions[uid]=true;try{await ctx.deleteMessage();}catch(_){}return ctx.reply(E.gear+' Send your AI API key and it will be added:');});
 
 bot.command(['build','new'],async function(ctx){ownerChatIds.add(ctx.chat.id);
   var uid=String(ctx.from.id);
@@ -327,7 +327,7 @@ bot.command('addbot',async function(ctx){ownerChatIds.add(ctx.chat.id);
   s.step='check_url';
   var m=await ctx.reply(
     E.wrench+' <b>Register / update bot</b>\n\n'+
-    'Paste the <b>Render URL</b> of the existing bot:\n'+
+    'Paste the <b>Bot URL</b> of your existing bot:\n'+
     '<i>e.g. https://mpc-bot-31hk.onrender.com</i>\n\n'+
     '<i>If already registered, I will recognize it instantly.</i>',
     {parse_mode:'HTML'}
@@ -536,7 +536,7 @@ async function pushAndSave(ctx,b,what){
       saveRegistry();
       return ctx.reply(
         E.check+' <b>'+b.ticker+'</b> \u2014 '+what+'!\n'+
-        E.rocket+' Render deploying \u2014 live in ~2 min.',
+        E.rocket+' Deploying \u2014 bot will be live in ~2 min.',
         {parse_mode:'HTML'}
       );
     }catch(e){return ctx.reply(E.xmark+' Failed: '+e.message);}
@@ -560,10 +560,22 @@ bot.action(/^rbd_(\d+)$/,async function(ctx){
   try{
     await githubUpdate(b.ghOwner,b.repoName,'bot.js',Buffer.from(genBot(b.d,CHAIN[b.chain]||CHAIN.bsc,b.mode)));
     await githubUpdate(b.ghOwner,b.repoName,'package.json',Buffer.from(genPkg(b.d.name,b.mode)));
+    // Try to also rename image from siren.jpg to ticker name if needed
+    try{
+      var tickerFile=(b.ticker||'token').replace(/\$/g,'').replace(/[^a-zA-Z0-9]/g,'').toLowerCase()+'.jpg';
+      var sirenR=await fetch('https://api.github.com/repos/'+b.ghOwner+'/'+b.repoName+'/contents/siren.jpg',{headers:{'Authorization':'token '+GITHUB_TOKEN,'Accept':'application/vnd.github.v3+json'}});
+      if(sirenR.ok){
+        var sirenD=await sirenR.json();
+        if(sirenD.content){
+          var imgBuf=Buffer.from(sirenD.content.replace(/\s/g,''),'base64');
+          await githubUpdate(b.ghOwner,b.repoName,tickerFile,imgBuf);
+        }
+      }
+    }catch(_){}
     return ctx.reply(
       E.check+' <b>'+b.ticker+'</b> successfully rebuilt!\n\n'+
-      E.gear+' Code pushed to GitHub.\n'+
-      E.rocket+' Render is deploying \u2014 bot will be live in ~2 min.\n\n'+
+      E.gear+' Code pushed successfully.\n'+
+      E.rocket+' Deploying \u2014 bot will be live in ~2 min.\n\n'+
       '<i>Check /stats after 2 min to confirm it is online.</i>',
       {parse_mode:'HTML'}
     );
@@ -589,7 +601,7 @@ bot.action(/^upd_(\d+|all)$/,async function(ctx){
     try{await githubUpdate(b.ghOwner,b.repoName,'bot.js',Buffer.from(genBot(b.d,CHAIN[b.chain]||CHAIN.bsc,b.mode)));results.push(E.check+' <b>'+b.ticker+'</b>');}
     catch(e){results.push(E.xmark+' <b>'+b.ticker+'</b>: '+e.message.slice(0,60));}
   }
-  return ctx.reply(results.join('\n')+'\n\nRender redeploys automatically.',{parse_mode:'HTML'});
+  return ctx.reply(results.join('\n')+'\n\nBot is being updated automatically.',{parse_mode:'HTML'});
 });
 
 
@@ -606,7 +618,7 @@ bot.on('photo',async function(ctx){
       await ctx.reply(E.gear+' Updating image...');
       var eImgFile=(b.ticker||'token').replace(/\$/g,'').replace(/[^a-zA-Z0-9]/g,'').toLowerCase()+'.jpg';
       await githubUpdate(b.ghOwner,b.repoName,eImgFile,buf);
-      delete editSessions[uid];return ctx.reply(E.check+' Image updated! Render redeploys in ~1 min.');
+      delete editSessions[uid];return ctx.reply(E.check+' Image updated! Deploying \u2014 bot will be live shortly.');
     }catch(e){delete editSessions[uid];return ctx.reply(E.xmark+' Failed: '+e.message);}
   }
   // Wizard image
@@ -631,7 +643,7 @@ bot.on('text',async function(ctx){
     delete groqSessions[uid];try{await ctx.deleteMessage();}catch(_){}
     if(text.length<20)return ctx.reply(E.xmark+' Invalid key. Try /addgroq again.');
     groqPool.push(text.trim());
-    return ctx.reply(E.check+' Groq key added! Pool: '+groqPool.length+' key(s).');
+    return ctx.reply(E.check+' AI key added! Pool: '+groqPool.length+' key(s).');
   }
 
   // Edit text fields
@@ -657,7 +669,43 @@ bot.on('text',async function(ctx){
   try{if(s.lastMsgId)await ctx.telegram.deleteMessage(ctx.chat.id,s.lastMsgId);}catch(_){}
   s.lastMsgId=null;
 
-  var btn_steps=['chain','mode','gt','status','pers','rmode','sil','tax','maxwallet','lp'];
+  //  Check URL step for /addbot 
+  if(s.step==='check_url'){
+    var url=text.trim().replace(/\/+$/,'').replace(/\s/g,'');
+    if(!url.startsWith('http')){
+      var em=await ctx.reply(E.xmark+' Please paste the full bot URL (starts with https://).');
+      s.lastMsgId=em.message_id;return;
+    }
+    s.d.renderUrl=url;
+    s.d.repoName=(url.match(/https?:\/\/([a-z0-9-]+)\.onrender\.com/)||[])[1]||'';
+    var norm=function(u){return u.replace(/\/+$/,'').toLowerCase();};
+    var existing=registry.findIndex(function(b){return norm(b.url)===norm(url);});
+    if(existing>=0){
+      var eb=registry[existing];var ed=eb.d||{};
+      delete sessions[uid];
+      return ctx.reply(
+        E.check+' <b>'+eb.ticker+'</b> recognized!\n\n'+
+        '<b>All data is stored:</b>\n'+
+        E.check+' Name: '+(ed.name||eb.ticker)+'\n'+
+        E.check+' CA: '+((ed.ca||'').slice(0,10)+'...')+'\n'+
+        E.check+' Supply: '+(ed.supply||'N/A')+'\n'+
+        E.check+' Tax: '+(ed.buyTax||'?')+'% / '+(ed.sellTax||'?')+'%\n'+
+        E.check+' Contract: '+(ed.renounced||'?')+'\n'+
+        E.check+' LP: '+(ed.locked||'?')+'\n\n'+
+        E.rocket+' <b>What to do next:</b>\n'+
+        '\u2022 /rebuild \u2014 push latest code to bot\n'+
+        '\u2022 /edit \u2014 update any details\n'+
+        '\u2022 /stats \u2014 check if bot is online',
+        {parse_mode:'HTML'}
+      );
+    }
+    // Not found  continue with full wizard
+    s.step='chain';
+    await say(ctx,s,E.wrench+' Bot not found. Let\'s set it up.\n\nStep 1 \u2014 Select chain:',chainBtns(uid));
+    return;
+  }
+
+    var btn_steps=['chain','mode','gt','status','pers','rmode','sil','tax','maxwallet','lp'];
   if(btn_steps.includes(s.step)){
     var mb=await ctx.reply('Please tap one of the buttons above.');s.lastMsgId=mb.message_id;return;
   }
@@ -741,7 +789,7 @@ bot.on('text',async function(ctx){
 async function doBuild(ctx,s,uid){
   var d=s.d,ci=CHAIN[d.chain]||CHAIN.bsc;
   var groqKey=d.mode==='full'?nextGroq():'';
-  if(d.mode==='full'&&!groqKey)return ctx.reply(E.xmark+' No Groq key. Add one with /addgroq first.');
+  if(d.mode==='full'&&!groqKey)return ctx.reply(E.xmark+' No AI key found. Add one with /addgroq first.');
   d.revealCmd=rndCmd();d.hideCmd=rndCmd();
   d.name=d.name||d.ticker.replace('$','');
   var repoName=d.ticker.replace(/\$/g,'').replace(/[^a-zA-Z0-9]/g,'').toLowerCase()+'-bot-'+rnd(4);
@@ -778,13 +826,13 @@ async function doBuild(ctx,s,uid){
     saveRegistry();delete sessions[uid];
     await ctx.reply(
       E.party+' <b>'+d.ticker+' is live!</b>\n\n'+
-      E.link+' Render URL:\n<code>'+actualUrl+'</code>\n\n'+
-      E.folder+' GitHub:\n<code>github.com/'+ghOwner+'/'+repoName+'</code>\n\n'+
+      E.link+' Bot URL:\n<code>'+actualUrl+'</code>\n\n'+
+      
       E.warn+' <b>Secret commands \u2014 save these:</b>\n'+
       'Reveal CA: <code>/'+d.revealCmd+'</code>\n'+
       'Hide CA:   <code>/'+d.hideCmd+'</code>\n\n'+
       '<b>Next steps:</b>\n'+
-      '1. Wait 3-5 min for Render to build\n'+
+      '1. Wait 3-5 min for bot to build\n'+
       '2. Add bot to your Telegram group\n'+
       '3. Make it admin (delete messages + restrict)\n'+
       '4. Use <code>/'+d.revealCmd+'</code> in group to reveal CA',
@@ -1121,7 +1169,7 @@ async function sendDailyReport(){
     lines.push('One or more bots are offline.');
     lines.push('\u2022 /stats \u2014 see details');
     lines.push('\u2022 /rebuild \u2014 push fresh code');
-    lines.push('\u2022 Check Render dashboard logs');
+    lines.push('\u2022 Contact support if issue persists');
   } else {
     lines.push(E.check+' All bots are running smoothly.');
   }
@@ -1178,7 +1226,7 @@ app.listen(PORT,async function(){
       {command:'rebuild', description:'Full rebuild from stored data'},
       {command:'update',  description:'Push latest code to bot(s)'},
       {command:'stats',   description:'Health check'},
-      {command:'addgroq', description:'Add Groq API key'},
+      {command:'addgroq', description:'Add AI key'},
       {command:'cancel',  description:'Cancel current operation'},
     ]);
   }catch(e){console.log('Commands:',e.message);}
