@@ -48,7 +48,7 @@ var PERS_LABELS={
 var bot=new Telegraf(BOT_TOKEN);
 var app=express();
 app.use(express.json());
-var registry=[],sessions={},editSessions={},groqSessions={};
+var registry=[],sessions={},editSessions={},groqSessions={},ownerChatIds=new Set();
 
 //  HELPERS 
 function rnd(n){var c='abcdefghijklmnopqrstuvwxyz0123456789',o='';for(var i=0;i<n;i++)o+=c[Math.floor(Math.random()*c.length)];return o;}
@@ -225,7 +225,7 @@ function nextStep(s){
     flow=['chain','mode','status','pers','rmode','sil','ca','twitter','tax','maxwallet','lp','narrative','img','bottoken'];
   else
     flow=['chain','mode','gt','status','sil','ca','twitter','tax','maxwallet','lp','narrative','img','bottoken'];
-  if(isAdd)flow.push('renderurl');
+  if(isAdd&&!d.renderUrl)flow.push('renderurl');
   flow.push('confirm');
   var idx=flow.indexOf(step);
   return idx>=0&&idx+1<flow.length?flow[idx+1]:'confirm';
@@ -273,18 +273,38 @@ function buildSummary(s){
 
 //  COMMANDS 
 bot.command('start',function(ctx){
+  ownerChatIds.add(ctx.chat.id);
   return ctx.reply(
-    E.rocket+' <b>Bot Factory</b>\n\nBuild and manage Telegram bots for your crypto token.\n\n'+
-    '<b>What I do:</b>\n\u2022 Auto-fetch token data from BSCScan + DexScreener\n\u2022 Generate the bot code\n\u2022 Create GitHub repo + deploy to Render\n\u2022 Set up cron keepalive\n\u2022 Bot live in ~3 minutes\n\n'+
+    E.rocket+' <b>Bot Factory</b>\n'+
+    '<i>The fastest way to launch a Telegram community bot for your token.</i>\n\n'+
+
+    E.gear+' <b>What happens when you build:</b>\n'+
+    '\u2022 Token data auto-fetched from BSCScan + DexScreener\n'+
+    '\u2022 Bot code generated with your exact details\n'+
+    '\u2022 GitHub repo created and code pushed\n'+
+    '\u2022 Deployed live on Render automatically\n'+
+    '\u2022 Cron keepalive configured\n'+
+    '\u2022 <b>Bot live in ~3 minutes. Zero manual setup.</b>\n\n'+
+
+    E.shield+' <b>Two bot types:</b>\n'+
+    '\u2022 <b>Full</b> \u2014 AI-powered replies, moderation, silence breaker, admin shoutouts\n'+
+    '\u2022 <b>Guard</b> \u2014 moderation + hardcoded replies, no AI\n\n'+
+
+    E.star+' <b>After building:</b>\n'+
+    '\u2022 /edit \u2014 change any detail, pushes instantly\n'+
+    '\u2022 /rebuild \u2014 full refresh with stored data\n'+
+    '\u2022 /update \u2014 push latest factory improvements\n'+
+    '\u2022 Daily report sent every morning automatically\n\n'+
+
     '<b>Commands</b>\n'+
     '/build \u2014 Build a new bot\n'+
     '/addbot \u2014 Register existing bot\n'+
     '/bots \u2014 List your bots\n'+
     '/edit \u2014 Edit a bot\n'+
     '/rebuild \u2014 Full rebuild from stored data\n'+
-    '/update \u2014 Push latest code to bot(s)\n'+
-    '/stats \u2014 Health check\n'+
-    '/addgroq \u2014 Add Groq API key\n'+
+    '/update \u2014 Push latest factory improvements\n'+
+    '/stats \u2014 Health check all bots\n'+
+    '/addgroq \u2014 Add Groq AI key\n'+
     '/cancel \u2014 Cancel current operation',
     {parse_mode:'HTML'}
   );
@@ -292,13 +312,13 @@ bot.command('start',function(ctx){
 bot.command('cancel',function(ctx){var uid=String(ctx.from.id);delete sessions[uid];delete editSessions[uid];return ctx.reply(E.xmark+' Cancelled.');});
 bot.command('addgroq',async function(ctx){var uid=String(ctx.from.id);groqSessions[uid]=true;try{await ctx.deleteMessage();}catch(_){}return ctx.reply(E.gear+' Send your Groq API key and it will be added automatically:');});
 
-bot.command(['build','new'],async function(ctx){
+bot.command(['build','new'],async function(ctx){ownerChatIds.add(ctx.chat.id);
   var uid=String(ctx.from.id);
   sessions[uid]=newSession(false);
   try{await ctx.deleteMessage();}catch(_){}
   await showStep(ctx,sessions[uid],uid);
 });
-bot.command('addbot',async function(ctx){
+bot.command('addbot',async function(ctx){ownerChatIds.add(ctx.chat.id);
   var uid=String(ctx.from.id);
   sessions[uid]=newSession(true);
   try{await ctx.deleteMessage();}catch(_){}
@@ -315,7 +335,7 @@ bot.command('addbot',async function(ctx){
   s.lastMsgId=m.message_id;
 });
 
-bot.command('bots',function(ctx){
+bot.command('bots',function(ctx){ownerChatIds.add(ctx.chat.id);
   if(!registry.length)return ctx.reply(E.list+' No bots yet. Use /build.');
   var msg=E.list+' <b>Your Bots</b>\n\n';
   registry.forEach(function(b,i){
@@ -327,7 +347,7 @@ bot.command('bots',function(ctx){
   return ctx.reply(msg,{parse_mode:'HTML',disable_web_page_preview:true});
 });
 
-bot.command('stats',async function(ctx){
+bot.command('stats',async function(ctx){ownerChatIds.add(ctx.chat.id);
   if(!registry.length)return ctx.reply(E.chart+' No bots registered.');
   await ctx.reply(E.chart+' Checking bots...');
   var msg=E.chart+' <b>Bot Health</b>\n\n';
@@ -514,7 +534,11 @@ async function pushAndSave(ctx,b,what){
     try{
       await githubUpdate(b.ghOwner,b.repoName,'bot.js',Buffer.from(genBot(b.d,CHAIN[b.chain]||CHAIN.bsc,b.mode)));
       saveRegistry();
-      return ctx.reply(E.check+' <b>'+b.ticker+'</b> \u2014 '+what+'!\nRender redeploys in ~1 min.',{parse_mode:'HTML'});
+      return ctx.reply(
+        E.check+' <b>'+b.ticker+'</b> \u2014 '+what+'!\n'+
+        E.rocket+' Render deploying \u2014 live in ~2 min.',
+        {parse_mode:'HTML'}
+      );
     }catch(e){return ctx.reply(E.xmark+' Failed: '+e.message);}
   }
   saveRegistry();
@@ -536,7 +560,13 @@ bot.action(/^rbd_(\d+)$/,async function(ctx){
   try{
     await githubUpdate(b.ghOwner,b.repoName,'bot.js',Buffer.from(genBot(b.d,CHAIN[b.chain]||CHAIN.bsc,b.mode)));
     await githubUpdate(b.ghOwner,b.repoName,'package.json',Buffer.from(genPkg(b.d.name,b.mode)));
-    return ctx.reply(E.check+' <b>'+b.ticker+'</b> rebuilt!\nRender redeploys in ~1 min.',{parse_mode:'HTML'});
+    return ctx.reply(
+      E.check+' <b>'+b.ticker+'</b> successfully rebuilt!\n\n'+
+      E.gear+' Code pushed to GitHub.\n'+
+      E.rocket+' Render is deploying \u2014 bot will be live in ~2 min.\n\n'+
+      '<i>Check /stats after 2 min to confirm it is online.</i>',
+      {parse_mode:'HTML'}
+    );
   }catch(e){return ctx.reply(E.xmark+' Failed: '+e.message);}
 });
 
@@ -677,7 +707,13 @@ bot.on('text',async function(ctx){
   }
 
   // Twitter
-  if(s.step==='twitter'){s.d.twitter=text;s.step=nextStep(s);await showStep(ctx,s,uid);return;}
+  if(s.step==='twitter'){
+    var tw=text.trim();
+    // Validate  reject if it looks like a render URL
+    if(tw.includes('onrender.com')||tw==='-')tw='';
+    s.d.twitter=tw;
+    s.step=nextStep(s);await showStep(ctx,s,uid);return;
+  }
   // Narrative
   if(s.step==='narrative'){s.d.narrative=text;s.step=nextStep(s);await showStep(ctx,s,uid);return;}
   // Tax manual
@@ -767,12 +803,23 @@ async function doRegister(ctx,s,uid){
     registry[existing].repoName=d.repoName||registry[existing].repoName;
     registry[existing].chain=d.chain;registry[existing].mode=d.mode;
     saveRegistry();delete sessions[uid];
-    return ctx.reply(E.check+' <b>'+d.ticker+'</b> updated with full details!\n\nUse /rebuild to push fresh code to the bot.',{parse_mode:'HTML'});
+    return ctx.reply(
+      E.check+' <b>'+d.ticker+'</b> updated successfully!\n\n'+
+      'All token data has been stored.\n\n'+
+      E.rocket+' <b>Next step:</b>\n'+
+      'Send /rebuild to push fresh code to the bot.',
+      {parse_mode:'HTML'}
+    );
   }
   registry.push({ticker:d.ticker,chain:d.chain,mode:d.mode,repoName:d.repoName,ghOwner:GH_OWNER,url:d.renderUrl,d:JSON.parse(JSON.stringify(d)),builtAt:Date.now()});
   saveRegistry();delete sessions[uid];
   return ctx.reply(
-    E.check+' <b>'+d.ticker+'</b> registered!\n\nUse /rebuild to push code, or /edit to update any details.',
+    E.check+' <b>'+d.ticker+'</b> registered successfully!\n\n'+
+    'All token data has been stored.\n\n'+
+    E.rocket+' <b>Next steps:</b>\n'+
+    '\u2022 /rebuild \u2014 push code to your bot\n'+
+    '\u2022 /edit \u2014 update any details\n'+
+    '\u2022 /stats \u2014 check if bot is online',
     {parse_mode:'HTML'}
   );
 }
@@ -870,8 +917,11 @@ function genGuard(d,ci){
   ln("function loadState(){try{var s=JSON.parse(fs.readFileSync(_SF,'utf8'));caUnlocked=!!s.u;groupChatId=s.g||null;}catch(_){}}");
   ln("function saveState(){try{fs.writeFileSync(_SF,JSON.stringify({u:caUnlocked,g:groupChatId}));}catch(_){}}");
   ln("loadState();");
-  ln("var IMG=path.join(__dirname,'"+(d.ticker.replace(/\\$/g,'').replace(/[^a-zA-Z0-9]/g,'').toLowerCase())+".jpg'),IMG_BUF=null;");
-  ln("try{if(fs.existsSync(IMG))IMG_BUF=fs.readFileSync(IMG);}catch(_){}");
+  ln("var _IMG1=path.join(__dirname,'"+(d.ticker.replace(/\\$/g,'').replace(/[^a-zA-Z0-9]/g,'').toLowerCase())+".jpg');");
+  ln("var _IMG2=path.join(__dirname,'siren.jpg');");
+  ln("var IMG=fs.existsSync(_IMG1)?_IMG1:(fs.existsSync(_IMG2)?_IMG2:_IMG1);");
+  ln("var IMG_BUF=null;try{if(fs.existsSync(IMG))IMG_BUF=fs.readFileSync(IMG);}catch(_){}");
+  // IMG_BUF loaded above
   ln("var imgMsgs=new Map(),strikes=new Map(),spamTracker=new Map();");
   ln("async function delPrevImg(cid){var mid=imgMsgs.get(cid);if(mid){try{await bot.telegram.deleteMessage(cid,mid);}catch(_){}imgMsgs.delete(cid);}}");
   ln("async function sendImg(cid,cap,extra){await delPrevImg(cid);extra=extra||{};if(IMG_BUF){try{var m=await bot.telegram.sendPhoto(cid,{source:IMG_BUF},Object.assign({caption:cap,parse_mode:'HTML'},extra));imgMsgs.set(cid,m.message_id);return m;}catch(e){IMG_BUF=null;}}return bot.telegram.sendMessage(cid,cap,Object.assign({parse_mode:'HTML'},extra));}");
@@ -962,8 +1012,11 @@ function genFull(d,ci){
   ln("function loadState(){try{var s=JSON.parse(fs.readFileSync(_SF,'utf8'));caUnlocked=!!s.u;groupChatId=s.g||null;}catch(_){}}");
   ln("function saveState(){try{fs.writeFileSync(_SF,JSON.stringify({u:caUnlocked,g:groupChatId}));}catch(_){}}");
   ln("loadState();");
-  ln("var IMG=path.join(__dirname,'"+(d.ticker.replace(/\\$/g,'').replace(/[^a-zA-Z0-9]/g,'').toLowerCase())+".jpg'),IMG_BUF=null;");
-  ln("try{if(fs.existsSync(IMG))IMG_BUF=fs.readFileSync(IMG);}catch(_){}");
+  ln("var _IMG1=path.join(__dirname,'"+(d.ticker.replace(/\\$/g,'').replace(/[^a-zA-Z0-9]/g,'').toLowerCase())+".jpg');");
+  ln("var _IMG2=path.join(__dirname,'siren.jpg');");
+  ln("var IMG=fs.existsSync(_IMG1)?_IMG1:(fs.existsSync(_IMG2)?_IMG2:_IMG1);");
+  ln("var IMG_BUF=null;try{if(fs.existsSync(IMG))IMG_BUF=fs.readFileSync(IMG);}catch(_){}");
+  // IMG_BUF loaded above
   ln("var imgMsgs=new Map(),strikes=new Map(),spamTracker=new Map(),lastReplies=[];");
   ln("var SHOUTOUT_ON=false,shoutTimer=null;");
   ln("async function delPrevImg(cid){var mid=imgMsgs.get(cid);if(mid){try{await bot.telegram.deleteMessage(cid,mid);}catch(_){}imgMsgs.delete(cid);}}");
@@ -1045,6 +1098,51 @@ function genFull(d,ci){
 }
 
 //  FACTORY STARTUP 
+//  DAILY REPORT 
+async function sendDailyReport(){
+  if(!registry.length||!ownerChatIds.size)return;
+  var lines=[E.chart+' <b>Daily Bot Report</b>\n'];
+  var anyOffline=false;
+  for(var i=0;i<registry.length;i++){
+    var b=registry[i];var ok=false;
+    try{
+      var r=await Promise.race([
+        fetch(b.url+'/health'),
+        new Promise(function(_,rej){setTimeout(function(){rej(new Error('t'));},8000);}),
+      ]);
+      ok=r&&r.ok;
+    }catch(_){}
+    lines.push((i+1)+'. <b>'+b.ticker+'</b> \u2014 '+(ok?E.check+' Online':E.xmark+' Offline'));
+    if(!ok)anyOffline=true;
+  }
+  lines.push('');
+  if(anyOffline){
+    lines.push(E.warn+' <b>Action needed:</b>');
+    lines.push('One or more bots are offline.');
+    lines.push('\u2022 /stats \u2014 see details');
+    lines.push('\u2022 /rebuild \u2014 push fresh code');
+    lines.push('\u2022 Check Render dashboard logs');
+  } else {
+    lines.push(E.check+' All bots are running smoothly.');
+  }
+  var msg=lines.join('\n');
+  for(var cid of ownerChatIds){
+    try{await bot.telegram.sendMessage(cid,msg,{parse_mode:'HTML'});}catch(_){}
+  }
+}
+function scheduleDailyReport(){
+  var now=new Date();
+  var next=new Date();
+  next.setUTCHours(9,0,0,0);
+  if(next<=now)next.setUTCDate(next.getUTCDate()+1);
+  var wait=next.getTime()-now.getTime();
+  setTimeout(function(){
+    sendDailyReport();
+    setInterval(sendDailyReport,24*60*60*1000);
+  },wait);
+  console.log('Daily report scheduled in',Math.round(wait/3600000),'hr(s)');
+}
+
 app.post('/webhook',function(req,res){bot.handleUpdate(req.body,res);});
 app.get('/',function(req,res){res.end('OK');});
 app.get('/health',function(req,res){res.end('OK');});
@@ -1085,5 +1183,6 @@ app.listen(PORT,async function(){
     ]);
   }catch(e){console.log('Commands:',e.message);}
   setInterval(function(){if(WEBHOOK_URL)try{fetch(WEBHOOK_URL+'/health').catch(function(){});}catch(_){}},4*60*1000);
+  try{scheduleDailyReport();}catch(e){console.log('Daily report:',e.message);}
   console.log('Bot Factory is live.');
 });
