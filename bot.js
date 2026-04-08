@@ -142,15 +142,27 @@ var BUILD_ASKS = {
   ticker    : E.pencil + ' Ticker with $?\n<i>e.g. $PECKER</i>',
   ca        : E.pencil + ' Contract address?',
   supply    : E.pencil + ' Total supply?\n<i>Shorthand: 1B, 500M, 1.5B, 100K or full number</i>',
-  maxwallet : E.pencil + ' Max wallet %?\n<i>e.g. 4.9% and token count auto-calculates\nOr both: 4.9% / 49M \u2014 or - to skip</i>',
-  taxes     : E.pencil + ' Tax? (buy/sell)\n<i>e.g. 5 if same both sides, or 5/3 \u2014 or - if none</i>',
+  maxwallet : E.pencil + ' Max wallet %?\n<i>e.g. 4.9% \u2014 token count auto-calculates from supply\nOr enter both: 4.9% / 49M</i>',
+  taxes     : E.pencil + ' Buy / sell tax?\n<i>e.g. 5 if both same, or 5/3 for different rates</i>',
   twitter   : E.pencil + ' Twitter/X link?',
-  website   : E.pencil + ' Website? <i>(- to skip)</i>',
-  renounced : E.pencil + ' Contract renounced? <b>yes</b> or <b>no</b>',
-  locked    : E.pencil + ' LP locked? <b>yes</b> or <b>no</b>',
+  website   : E.pencil + ' Website link?',
+  renounced : E.pencil + ' Contract renounced?',
+  locked    : E.pencil + ' LP locked?',
   narrative : E.pencil + ' Token narrative / story?\n<i>What makes it unique. Used for AI personality.</i>',
-  image     : E.pencil + ' Send bot image (JPG or PNG)\n<i>- to skip</i>',
+  image     : E.pencil + ' Send bot image (JPG or PNG)',
   bottoken  : E.pencil + ' BotFather token?\n\n<i>1. Open @BotFather\n2. Send /newbot\n3. Enter name then username (must end in bot)\n4. Copy the token it gives you</i>',
+  renderurl : E.pencil + ' Render URL?\n<i>e.g. https://mpc-bot-31hk.onrender.com</i>',
+};
+
+// Skip keyboards for optional steps
+var SKIP_KBS = {
+  maxwallet : {inline_keyboard:[[{text:'Skip (no limit)',callback_data:'skip_maxwallet'}]]},
+  taxes     : {inline_keyboard:[[{text:'No tax (0% / 0%)',callback_data:'skip_taxes'},{text:'Enter manually',callback_data:'manual_taxes'}]]},
+  website   : {inline_keyboard:[[{text:'Skip (no website)',callback_data:'skip_website'}]]},
+  narrative : {inline_keyboard:[[{text:'Skip narrative',callback_data:'skip_narrative'}]]},
+  image     : {inline_keyboard:[[{text:'Skip (no image)',callback_data:'skip_image'}]]},
+  renounced : {inline_keyboard:[[{text:'\u2705 Yes \u2014 Renounced',callback_data:'bld_ren_yes'},{text:'\u274C No \u2014 Not renounced',callback_data:'bld_ren_no'}]]},
+  locked    : {inline_keyboard:[[{text:'\u2705 Yes \u2014 LP Locked',callback_data:'bld_lck_yes'},{text:'\u274C No \u2014 Not locked',callback_data:'bld_lck_no'}]]},
 };
 
 function newSession(isAddbot) {
@@ -207,7 +219,7 @@ function processInput(s, text) {
 
 function nextTextStep(currentStep, isAddbot) {
   var steps = isAddbot
-    ? ['name','ticker','ca','supply','maxwallet','taxes','twitter','website','renounced','locked','narrative','image','renderurl','bottoken']
+    ? ['name','ticker','ca','supply','maxwallet','taxes','twitter','website','renounced','locked','narrative','renderurl','image','bottoken']
     : ['name','ticker','ca','supply','maxwallet','taxes','twitter','website','renounced','locked','narrative','image','bottoken'];
   var idx = steps.indexOf(currentStep);
   return idx >= 0 && idx + 1 < steps.length ? steps[idx + 1] : 'confirm';
@@ -287,7 +299,9 @@ function persButtons(uid) {
 
 async function sendStep(ctx, s, ask, kb) {
   try { if (s.lastBotMsgId) await ctx.telegram.deleteMessage(ctx.chat.id, s.lastBotMsgId); } catch(_) {}
-  var m = await ctx.reply(ask, { parse_mode: 'HTML', reply_markup: kb || undefined });
+  // Auto-attach skip keyboard if step has one and none was provided
+  var replyKb = kb || SKIP_KBS[s.step] || undefined;
+  var m = await ctx.reply(ask, { parse_mode: 'HTML', reply_markup: replyKb });
   s.lastBotMsgId = m.message_id;
 }
 
@@ -443,6 +457,71 @@ bot.command('rebuild', async function(ctx) {
 // 
 // BUILD BUTTON CALLBACKS
 // 
+// Renounced/locked button callbacks
+bot.action(/^bld_ren_(yes|no)$/, async function(ctx) {
+  await ctx.answerCbQuery();
+  var uid = String(ctx.from.id), s = sessions[uid];
+  if (!s) return ctx.reply(E.xmark + ' Session expired.');
+  s.data.renounced = ctx.match[1] === 'yes' ? 'RENOUNCED' : 'NOT RENOUNCED';
+  s.step = nextTextStep('renounced', s.isAddbot);
+  try { await ctx.deleteMessage(); } catch(_) {}
+  if (s.step === 'confirm') { var m = await ctx.reply(s.isAddbot ? buildAddbotSummary(s) : buildSummary(s), { parse_mode: 'HTML' }); s.lastBotMsgId = m.message_id; return; }
+  var ask = BUILD_ASKS[s.step] || 'Continue:';
+  var kb  = SKIP_KBS[s.step] || undefined;
+  var m2  = await ctx.reply(ask, { parse_mode: 'HTML', reply_markup: kb });
+  s.lastBotMsgId = m2.message_id;
+});
+
+bot.action(/^bld_lck_(yes|no)$/, async function(ctx) {
+  await ctx.answerCbQuery();
+  var uid = String(ctx.from.id), s = sessions[uid];
+  if (!s) return ctx.reply(E.xmark + ' Session expired.');
+  s.data.locked = ctx.match[1] === 'yes' ? 'LOCKED' : 'NOT LOCKED';
+  s.step = nextTextStep('locked', s.isAddbot);
+  try { await ctx.deleteMessage(); } catch(_) {}
+  if (s.step === 'confirm') { var m = await ctx.reply(s.isAddbot ? buildAddbotSummary(s) : buildSummary(s), { parse_mode: 'HTML' }); s.lastBotMsgId = m.message_id; return; }
+  var ask = BUILD_ASKS[s.step] || 'Continue:';
+  var kb  = SKIP_KBS[s.step] || undefined;
+  var m2  = await ctx.reply(ask, { parse_mode: 'HTML', reply_markup: kb });
+  s.lastBotMsgId = m2.message_id;
+});
+
+// Skip button callbacks
+bot.action(/^skip_(maxwallet|taxes|website|narrative|image)$/, async function(ctx) {
+  await ctx.answerCbQuery();
+  var field = ctx.match[1];
+  // Find which session this belongs to  check all active sessions
+  var uid = String(ctx.from.id);
+  var s = sessions[uid];
+  if (!s) return ctx.reply(E.xmark + ' Session expired. Start again.');
+  try { await ctx.deleteMessage(); } catch(_) {}
+  // Apply default values
+  if (field === 'maxwallet')  { s.data.maxWalletPct = ''; s.data.maxWalletTokens = ''; }
+  if (field === 'taxes')      { s.data.buyTax = '0'; s.data.sellTax = '0'; }
+  if (field === 'website')    { s.data.website = ''; }
+  if (field === 'narrative')  { s.data.narrative = ''; }
+  if (field === 'image')      { s.imageBuffer = null; }
+  s.step = nextTextStep(field, s.isAddbot);
+  if (s.step === 'confirm') {
+    var m = await ctx.reply(s.isAddbot ? buildAddbotSummary(s) : buildSummary(s), { parse_mode: 'HTML' });
+    s.lastBotMsgId = m.message_id; return;
+  }
+  var ask = BUILD_ASKS[s.step] || 'Continue:';
+  var kb = SKIP_KBS[s.step] || undefined;
+  var m2 = await ctx.reply(ask, { parse_mode: 'HTML', reply_markup: kb });
+  s.lastBotMsgId = m2.message_id;
+});
+
+bot.action('manual_taxes', async function(ctx) {
+  await ctx.answerCbQuery();
+  var uid = String(ctx.from.id);
+  var s = sessions[uid];
+  if (!s) return ctx.reply(E.xmark + ' Session expired.');
+  try { await ctx.deleteMessage(); } catch(_) {}
+  var m = await ctx.reply(E.pencil + ' Enter tax rate:\n<i>e.g. 5 if both same, or 5/3 for different rates</i>', { parse_mode: 'HTML' });
+  s.lastBotMsgId = m.message_id;
+});
+
 bot.action(/^bld_chain_(bsc|sol)_(.+)$/, async function(ctx) {
   await ctx.answerCbQuery();
   var uid = ctx.match[2], s = sessions[uid];
@@ -522,7 +601,7 @@ bot.on('text', async function(ctx) {
   var text = (ctx.message.text || '').trim();
   if (text.startsWith('/')) return;
 
-  // Groq key
+  //  Groq key session 
   if (groqKeySessions[uid]) {
     delete groqKeySessions[uid];
     try { await ctx.deleteMessage(); } catch(_) {}
@@ -531,54 +610,82 @@ bot.on('text', async function(ctx) {
     return ctx.reply(E.check + ' Groq key added. Pool: ' + groqPool.length + ' key(s).');
   }
 
+  //  Edit session text 
+  var es = editSessions[uid];
+  if (es && es.field && es.field !== 'image' && es.field !== 'personality') {
+    if (text.startsWith('/')) return;
+    var b = botRegistry[es.botIdx];
+    if (!b) { delete editSessions[uid]; return; }
+    try { await ctx.deleteMessage(); } catch(_) {}
+    b.data = b.data || {};
+    if (es.field === 'twitter')   b.data.twitter   = text;
+    if (es.field === 'website')   b.data.website    = (text === '-' ? '' : text);
+    if (es.field === 'narrative') b.data.narrative  = text;
+    var processingMsg = await ctx.reply(E.gear + ' Updating ' + es.field + '...');
+    if (b.repoName && b.ghOwner) {
+      var code = generateBotCode(b.data, CHAIN_INFO[b.chain] || CHAIN_INFO.bsc, b.mode);
+      try {
+        await githubPushFileUpdate(b.ghOwner, b.repoName, 'bot.js', Buffer.from(code));
+        saveRegistry();
+        delete editSessions[uid];
+        try { await ctx.telegram.deleteMessage(ctx.chat.id, processingMsg.message_id); } catch(_) {}
+        return ctx.reply(E.check + ' <b>' + b.ticker + '</b> \u2014 <b>' + es.field + '</b> updated!\nRender redeploys in ~1 min.', { parse_mode: 'HTML' });
+      } catch(e) {
+        delete editSessions[uid];
+        try { await ctx.telegram.deleteMessage(ctx.chat.id, processingMsg.message_id); } catch(_) {}
+        return ctx.reply(E.xmark + ' Update failed: ' + e.message);
+      }
+    }
+    saveRegistry();
+    delete editSessions[uid];
+    try { await ctx.telegram.deleteMessage(ctx.chat.id, processingMsg.message_id); } catch(_) {}
+    return ctx.reply(E.check + ' Saved. Use /rebuild to push to the bot.');
+  }
+
+  //  Build / addbot wizard 
   var s = sessions[uid];
-  if (!s) return ctx.reply('Use /build to build a new bot, /addbot to register one, or /help for all commands.');
+  if (!s) return ctx.reply('Use /build to build a new bot, /addbot to register one, or /help for commands.');
 
   try { await ctx.deleteMessage(); } catch(_) {}
   try { if (s.lastBotMsgId) await ctx.telegram.deleteMessage(ctx.chat.id, s.lastBotMsgId); } catch(_) {}
   s.lastBotMsgId = null;
 
-  // Button-only steps
-  if (['chain','mode','status','personality'].includes(s.step)) {
-    var m = await ctx.reply('Please use the buttons to select.', { parse_mode: 'HTML' });
-    s.lastBotMsgId = m.message_id; return;
+  // Button-only steps  redirect
+  if (['chain','mode','status','personality','renounced','locked'].includes(s.step)) {
+    var mb = await ctx.reply('Please tap one of the buttons above.', { parse_mode: 'HTML' });
+    s.lastBotMsgId = mb.message_id; return;
   }
 
-  if (s.step === 'image') {
-    if (text === '-') {
-      s.imageBuffer = null;
-      s.step = nextTextStep('image', s.isAddbot);
-    } else {
-      var m2 = await ctx.reply('Send an image photo or type <b>-</b> to skip.', { parse_mode: 'HTML' });
-      s.lastBotMsgId = m2.message_id; return;
+  // Confirm step  handle yes/no HERE
+  if (s.step === 'confirm') {
+    if (/^yes$/i.test(text)) {
+      return s.isAddbot ? registerBot(ctx, s, uid) : runBuild(ctx, s, uid);
     }
-  } else {
-    processInput(s, text);
-    s.step = nextTextStep(s.step, s.isAddbot);
-  }
-
-  if (s.step === 'confirm') {
-    var m3 = await ctx.reply(s.isAddbot ? buildAddbotSummary(s) : buildSummary(s), { parse_mode: 'HTML' });
-    s.lastBotMsgId = m3.message_id; return;
-  }
-
-  if (s.step === 'confirm' && text.toLowerCase() === 'yes') {
-    return s.isAddbot ? registerBot(ctx, s, uid) : runBuild(ctx, s, uid);
-  }
-
-  if (s.step === 'confirm') {
-    if (/^yes$/i.test(text)) return s.isAddbot ? registerBot(ctx, s, uid) : runBuild(ctx, s, uid);
     delete sessions[uid];
-    return ctx.reply(E.xmark + ' Cancelled.');
+    return ctx.reply(E.xmark + ' Cancelled. Use /build or /addbot to start again.');
+  }
+
+  // Image step  must send a photo
+  if (s.step === 'image') {
+    var mi = await ctx.reply('Please send an image photo, or tap the <b>Skip</b> button.', { parse_mode: 'HTML', reply_markup: SKIP_KBS.image });
+    s.lastBotMsgId = mi.message_id; return;
+  }
+
+  // Normal text step
+  processInput(s, text);
+  s.step = nextTextStep(s.step, s.isAddbot);
+
+  if (s.step === 'confirm') {
+    var mc = await ctx.reply(s.isAddbot ? buildAddbotSummary(s) : buildSummary(s), { parse_mode: 'HTML' });
+    s.lastBotMsgId = mc.message_id; return;
   }
 
   var ask = BUILD_ASKS[s.step] || 'Continue:';
-  var m4 = await ctx.reply(ask, { parse_mode: 'HTML' });
-  s.lastBotMsgId = m4.message_id;
+  var kb  = SKIP_KBS[s.step] || undefined;
+  var mn  = await ctx.reply(ask, { parse_mode: 'HTML', reply_markup: kb });
+  s.lastBotMsgId = mn.message_id;
 });
 
-// Handle yes/no at confirm step
-bot.on('text', async function() {}); // placeholder  handled above
 
 // Intercept confirm replies
 bot.hears(/^yes$/i, async function(ctx) {
@@ -721,32 +828,7 @@ bot.on('photo', async function(ctx) {
   }
 });
 
-bot.on('text', async function(ctx) {
-  var uid = String(ctx.from.id);
-  var es = editSessions[uid];
-  if (!es || !es.field || es.field === 'image' || es.field === 'personality') return;
-  var text = (ctx.message.text || '').trim();
-  if (text.startsWith('/')) return;
-  var b = botRegistry[es.botIdx]; if (!b) { delete editSessions[uid]; return; }
-  try { await ctx.deleteMessage(); } catch(_) {}
-  b.data = b.data || {};
-  if (es.field === 'twitter')   b.data.twitter   = text;
-  if (es.field === 'website')   b.data.website    = (text === '-' ? '' : text);
-  if (es.field === 'narrative') b.data.narrative  = text;
-  await ctx.reply(E.gear + ' Updating...');
-  if (b.repoName && b.ghOwner) {
-    var code = generateBotCode(b.data, CHAIN_INFO[b.chain] || CHAIN_INFO.bsc, b.mode);
-    try {
-      await githubPushFileUpdate(b.ghOwner, b.repoName, 'bot.js', Buffer.from(code));
-      saveRegistry();
-      delete editSessions[uid];
-      return ctx.reply(E.check + ' <b>' + b.ticker + '</b> \u2014 <b>' + es.field + '</b> updated!\nRender redeploys in ~1 min. No action needed.', { parse_mode: 'HTML' });
-    } catch(e) { delete editSessions[uid]; return ctx.reply(E.xmark + ' Failed: ' + e.message); }
-  }
-  saveRegistry();
-  delete editSessions[uid];
-  return ctx.reply(E.check + ' Saved. Use /rebuild to push to the bot.');
-});
+
 
 // UPDATE callbacks
 bot.action(/^upd_bot_(\d+|all)$/, async function(ctx) {
@@ -852,15 +934,22 @@ async function runBuild(ctx, s, uid) {
 
 async function registerBot(ctx, s, uid) {
   var d = s.data;
+  var processingMsg = await ctx.reply(E.gear + ' Registering <b>' + d.ticker + '</b>...', { parse_mode: 'HTML' });
+  await new Promise(function(r) { setTimeout(r, 500); });
   var existing = botRegistry.findIndex(function(b) { return b.url === d.renderUrl || b.ticker === d.ticker; });
+  try { await ctx.telegram.deleteMessage(ctx.chat.id, processingMsg.message_id); } catch(_) {}
   if (existing >= 0) {
-    botRegistry[existing].data = JSON.parse(JSON.stringify(d));
+    botRegistry[existing].data     = JSON.parse(JSON.stringify(d));
     botRegistry[existing].repoName = d.repoName || botRegistry[existing].repoName;
     botRegistry[existing].chain    = d.chain;
     botRegistry[existing].mode     = d.mode;
     saveRegistry();
     delete sessions[uid];
-    return ctx.reply(E.check + ' <b>' + d.ticker + '</b> updated in registry with full details!\nUse /rebuild to push updated code to the bot.', { parse_mode: 'HTML' });
+    return ctx.reply(
+      E.check + ' <b>' + d.ticker + '</b> updated with full details!\n\n' +
+      'Use /rebuild to push fresh code to the bot.',
+      { parse_mode: 'HTML' }
+    );
   }
   botRegistry.push({
     ticker: d.ticker, chain: d.chain, mode: d.mode,
@@ -870,12 +959,13 @@ async function registerBot(ctx, s, uid) {
   saveRegistry();
   delete sessions[uid];
   return ctx.reply(
-    E.check + ' <b>' + d.ticker + '</b> registered with full details!\n\n' +
-    'You can now use:\n' +
+    E.check + ' <b>' + d.ticker + '</b> registered!\n\n' +
+    E.link + ' ' + d.renderUrl + '\n\n' +
+    '<b>Next steps:</b>\n' +
     '/rebuild \u2014 push fresh code to the bot\n' +
-    '/edit \u2014 change twitter, narrative, personality etc\n' +
-    '/stats \u2014 check if it\'s online',
-    { parse_mode: 'HTML' }
+    '/edit \u2014 change twitter, narrative, personality\n' +
+    '/stats \u2014 check it\u2019s online',
+    { parse_mode: 'HTML', disable_web_page_preview: true }
   );
 }
 
