@@ -39,7 +39,7 @@ function repoFromUrl(url){
   return m?m[1]:'';
 }
 function ensurePct(s){s=String(s).trim();return s.endsWith('%')?s:s+'%';}
-function newSession(){return{step:'chain',lastBotMsgId:null,data:{chain:'bsc',mode:'full',tokenName:'',ticker:'',ca:'',supply:'',maxWalletPct:'',maxWalletTokens:'',buyTax:'',sellTax:'',twitter:'',website:'',renounced:'',locked:'',narrative:'',status:'launch',personality:'alpha',botToken:'',revealCmd:'revealca',hideCmd:'hideca'},imageBuffer:null};}
+function newSession(){return{step:'chain',lastBotMsgId:null,data:{chain:'bsc',mode:'full',tokenName:'',ticker:'',ca:'',supply:'',maxWalletPct:'',maxWalletTokens:'',buyTax:'',sellTax:'',twitter:'',website:'',renounced:'',locked:'',narrative:'',status:'launch',personality:'alpha',botToken:'',revealCmd:'',hideCmd:''},imageBuffer:null};}
 var STEPS=[
   {key:'chain',    ask:'<b>Step 1/16 \u2014 Chain?</b>\n\nbsc \u2014 BNB Smart Chain\nsol \u2014 Solana'},
   {key:'mode',     ask:'<b>Step 2/16 \u2014 Bot mode?</b>\n\n<b>full</b> \u2014 AI replies, silence breaker, moderation\n<b>guard</b> \u2014 moderation + hardcoded answers only (no AI)'},
@@ -57,9 +57,9 @@ var STEPS=[
   {key:'narrative',ask:'<b>Step 14/16</b> \u2014 Token narrative / story?\n<i>What makes it unique. Used for AI personality.</i>'},
   {key:'image',    ask:'<b>Step 15/16</b> \u2014 Send bot image (JPG or PNG)\n<i>- to skip</i>'},
   {key:'bottoken', ask:'<b>Step 16/16</b> \u2014 Bot token from BotFather\n\n<i>1. Open @BotFather\n2. Send /newbot\n3. Enter name then username (must end in bot)\n4. Copy the token it gives you</i>'},
-  {key:'personality',ask:''},
-  {key:'revealcmd',ask:'Reveal-CA command? <i>(- for default: revealca)</i>'},
-  {key:'hidecmd',  ask:'Hide-CA command? <i>(- for default: hideca)</i>'},
+  {key:'personality',ask:'<b>Step 4/15</b> \u2014 Bot personality:'},
+  // revealcmd and hidecmd are auto-generated
+
 ];
 function stepIdx(key){return STEPS.findIndex(function(s){return s.key===key;});}
 function advanceStep(s){var i=stepIdx(s.step);if(i+1<STEPS.length){s.step=STEPS[i+1].key;return STEPS[i+1];}s.step='confirm';return null;}
@@ -120,7 +120,8 @@ function buildSummary(s){
     '<b>Twitter:</b> '+d.twitter+'\n'+
     (d.website?'<b>Website:</b> '+d.website+'\n':'')+
     '<b>Contract:</b> '+d.renounced+'  <b>LP:</b> '+d.locked+'\n'+
-    '<b>Image:</b> '+(s.imageBuffer?E.check+' ready':'\u2014 none')+'\n\n'+
+    '<b>Image:</b> '+(s.imageBuffer?E.check+' ready':'\u2014 none')+'\n'+
+    '<i>Reveal/hide commands will be auto-generated</i>\n\n'+
     'Type <b>yes</b> to deploy \u2014 <b>no</b> to cancel.';
 }
 var backKb=function(key){return{inline_keyboard:[[{text:E.back+' Back',callback_data:'back_'+key}]]};};
@@ -402,23 +403,38 @@ bot.action(/^edit_field_(\w+)_(\d+)$/,async function(ctx){
   await ctx.answerCbQuery();
   var uid=String(ctx.from.id);var field=ctx.match[1],i=parseInt(ctx.match[2]);
   editSessions[uid]={botIdx:i,field:field};
-  var asks={twitter:'Send new Twitter/X link:',personality:'Send personality type: alpha / professional / hype / community',website:'Send new website URL (- to remove):',narrative:'Send the new narrative for this token:',image:'Send new bot image (photo):',revealcmd:'Send new reveal-CA command (no slash):'};
+  if(field==='personality'){
+    return ctx.reply(E.star+' Choose new personality:',{parse_mode:'HTML',reply_markup:{inline_keyboard:[
+      [{text:'\u26A1 Alpha \u2014 sharp, bold, crypto-native',callback_data:'editpers_alpha_'+i}],
+      [{text:'\u{1F454} Professional \u2014 clean, precise, informative',callback_data:'editpers_professional_'+i}],
+      [{text:'\u{1F525} Hype \u2014 high energy, exciting, bullish',callback_data:'editpers_hype_'+i}],
+      [{text:'\u{1F91D} Community \u2014 warm, friendly, inclusive',callback_data:'editpers_community_'+i}],
+      [{text:E.xmark+' Cancel',callback_data:'edit_cancel'}],
+    ]}});
+  }
+  var asks={twitter:'Send new Twitter/X link:',website:'Send new website URL (- to remove):',narrative:'Send the new narrative for this token:',image:'Send new bot image (photo):'};
   return ctx.reply(asks[field]||'Send new value:');
-});
-bot.action(/^edit_toggle_cto_(\d+)$/,async function(ctx){
+})
+
+bot.action(/^editpers_(alpha|professional|hype|community)_(\d+)$/,async function(ctx){
   await ctx.answerCbQuery();
-  var uid=String(ctx.from.id);var i=parseInt(ctx.match[1]);var b=botRegistry[i];
-  if(!b)return ctx.reply(E.xmark+' Bot not found.');
-  await ctx.reply(E.gear+' Updating project status...');
-  b.data=b.data||{};
-  b.data.status=b.data.status==='cto'?'launch':'cto';
-  var newCode=b.mode==='guard'?generateGuardBotJs(b.data,CHAIN_INFO[b.chain]||CHAIN_INFO.bsc):generateFullBotJs(b.data,CHAIN_INFO[b.chain]||CHAIN_INFO.bsc);
-  try{
-    if(b.repoName&&b.ghOwner)await githubPushFileUpdate(b.ghOwner,b.repoName,'bot.js',Buffer.from(newCode));
-    saveRegistry();
-    return ctx.reply(E.check+' <b>'+b.ticker+'</b> switched to <b>'+(b.data.status==='cto'?'CTO mode':'Launch mode')+'</b>\nRender redeploys in ~1 min.',{parse_mode:'HTML'});
-  }catch(e){return ctx.reply(E.xmark+' Failed: '+e.message);}
-});
+  var pers=ctx.match[1],i=parseInt(ctx.match[2]),uid=String(ctx.from.id);
+  var b=botRegistry[i];if(!b)return ctx.reply(E.xmark+' Bot not found.');
+  try{await ctx.deleteMessage();}catch(_){}
+  var labels={alpha:'\u26A1 Alpha',professional:'\u{1F454} Professional',hype:'\u{1F525} Hype',community:'\u{1F91D} Community'};
+  await ctx.reply(E.gear+' Updating personality to '+labels[pers]+'...');
+  b.data=b.data||{}; b.data.personality=pers;
+  delete editSessions[uid];
+  if(b.repoName&&b.ghOwner){
+    var ci=CHAIN_INFO[b.chain]||CHAIN_INFO.bsc;
+    var code=b.mode==='guard'?generateGuardBotJs(b.data,ci):generateFullBotJs(b.data,ci);
+    try{await githubPushFileUpdate(b.ghOwner,b.repoName,'bot.js',Buffer.from(code));saveRegistry();return ctx.reply(E.check+' <b>'+b.ticker+'</b> personality set to <b>'+labels[pers]+'</b>\nRender redeploys in ~1 min.',{parse_mode:'HTML'});}
+    catch(e){return ctx.reply(E.xmark+' Failed: '+e.message);}
+  }
+  saveRegistry();
+  return ctx.reply(E.check+' Personality saved as '+labels[pers]+'. Use /update to push to the bot.',{parse_mode:'HTML'});
+})
+
 bot.action('edit_cancel',async function(ctx){await ctx.answerCbQuery();delete editSessions[String(ctx.from.id)];return ctx.reply(E.xmark+' Cancelled.');});
 bot.on('photo',async function(ctx){
   var uid=String(ctx.from.id);var es=editSessions[uid];var s=sessions[uid];
@@ -531,6 +547,7 @@ bot.on('text',async function(ctx){
 });
 async function sleep(ms){return new Promise(function(r){setTimeout(r,ms);});}
 function rndStr(n){var c='abcdefghijklmnopqrstuvwxyz0123456789',o='';for(var i=0;i<n;i++)o+=c[Math.floor(Math.random()*c.length)];return o;}
+function rndCmd(){return rndStr(3)+rndStr(3)+rndStr(2);} // e.g. 'xk9pqm7r'
 function saveRegistry(){
   var safe=botRegistry.map(function(b){
     var copy=JSON.parse(JSON.stringify(b));
@@ -546,6 +563,8 @@ async function runBuild(ctx,s,uid){
   var d=s.data,ci=CHAIN_INFO[d.chain]||CHAIN_INFO.bsc;
   var groqKey=d.mode==='full'?nextGroqKey():'';
   if(d.mode==='full'&&!groqKey)return ctx.reply(E.xmark+' No Groq key. Use /addgroq to add one.');
+  if(!d.revealCmd||d.revealCmd==='revealca')d.revealCmd=rndCmd();
+  if(!d.hideCmd||d.hideCmd==='hideca')d.hideCmd=rndCmd();
   var repoName=d.ticker.replace(/\$/g,'').replace(/[^a-zA-Z0-9]/g,'').toLowerCase()+'-bot-'+rndStr(4);
   var guessUrl='https://'+repoName+'.onrender.com';
   await ctx.reply(E.gear+' Deploying <b>'+d.ticker+'</b>...',{parse_mode:'HTML'});
@@ -591,7 +610,9 @@ async function runBuild(ctx,s,uid){
       '1. Wait 3-5 min for Render to finish building\n'+
       '2. Add the bot to your Telegram group\n'+
       '3. Promote it to admin (delete / ban / restrict)\n'+
-      '4. Send /'+d.revealCmd+' in the group to reveal CA',
+      '4. To reveal CA: send <code>/'+d.revealCmd+'</code> in group (admin only)\n'+
+      '5. To hide CA: send <code>/'+d.hideCmd+'</code> (admin only)\n\n'+
+      E.warn+' Save these commands. They are secret and unique to this bot.',
       {parse_mode:'HTML',disable_web_page_preview:true}
     );
   }else{delete sessions[uid];}
@@ -638,7 +659,11 @@ function generateGuardBotJs(d,ci){
   ln("var bot=new Telegraf(BOT_TOKEN);");
   ln("var app=express();");
   ln("app.use(express.json());");
-  ln("var caUnlocked=false,groupChatId=null;");
+  ln("var _SF='/tmp/bot_state.json';")
+  ln("function loadState(){try{var s=JSON.parse(require('fs').readFileSync(_SF,'utf8'));caUnlocked=!!s.u;groupChatId=s.g||null;}catch(_){}}")
+  ln("function saveState(){try{require('fs').writeFileSync(_SF,JSON.stringify({u:caUnlocked,g:groupChatId}));}catch(_){}}")
+  ln("var caUnlocked=false,groupChatId=null;")
+  ln("loadState();");
   ln("var imageMessages=new Map(),strikes=new Map(),spamTracker=new Map(),stickerTracker=new Map();");
   ln("var IMG=path.join(__dirname,'siren.jpg');");
   ln("var STRIKE_RESET=86400000,SPAM_WINDOW=60000,SPAM_MAX=5;");
@@ -694,8 +719,8 @@ function generateGuardBotJs(d,ci){
   ln("bot.command('info',function(ctx){return ctx.reply('<b>" + TICKER + "</b>\\nChain: " + CHAIN_LBL + "\\nSupply: " + SUPPLY + "\\nMax Wallet: " + MAX_PCT + (MAX_TOK ? ' / ' + MAX_TOK : '') + "\\nBuy Tax: " + BUY_TAX + "% | Sell Tax: " + SELL_TAX + "%\\nContract: " + RENOUNCED + "\\nLP: " + LOCKED + "',{parse_mode:'HTML'});});");
   ln("bot.command('socials',function(ctx){return ctx.reply(buildSocialsMsg(),{parse_mode:'HTML',disable_web_page_preview:true});});");
   ln("bot.command('links',function(ctx){return ctx.reply(buildSocialsMsg(),{parse_mode:'HTML',disable_web_page_preview:true});});");
-  ln("bot.command('" + REVEAL + "',async function(ctx){var t=ctx.chat&&ctx.chat.type;if(t==='private'){caUnlocked=true;return ctx.reply('CA is now REVEALED.');}var admin=await isAdmin(ctx,ctx.from.id);if(!admin)return;caUnlocked=true;var m=await ctx.reply('CA is now live.');autoDelete(ctx.chat.id,m.message_id,10000);});");
-  ln("bot.command('" + HIDE + "',async function(ctx){var t=ctx.chat&&ctx.chat.type;if(t==='private'){caUnlocked=false;return ctx.reply('CA is now HIDDEN.');}var admin=await isAdmin(ctx,ctx.from.id);if(!admin)return;caUnlocked=false;var m=await ctx.reply('CA is now hidden.');autoDelete(ctx.chat.id,m.message_id,10000);});");
+  ln("bot.command('" + REVEAL + "',async function(ctx){var t=ctx.chat&&ctx.chat.type;if(t==='private'){caUnlocked=true;saveState();return ctx.reply('CA is now REVEALED.');}var admin=await isAdmin(ctx,ctx.from.id);if(!admin)return;caUnlocked=true;saveState();var m=await ctx.reply('CA is now live.');autoDelete(ctx.chat.id,m.message_id,10000);});");
+  ln("bot.command('" + HIDE + "',async function(ctx){var t=ctx.chat&&ctx.chat.type;if(t==='private'){caUnlocked=false;saveState();return ctx.reply('CA is now HIDDEN.');}var admin=await isAdmin(ctx,ctx.from.id);if(!admin)return;caUnlocked=false;saveState();var m=await ctx.reply('CA is now hidden.');autoDelete(ctx.chat.id,m.message_id,10000);});");
   ln("bot.on('message',async function(ctx){var msg=ctx.message;if(!msg||!ctx.from)return;var uid=ctx.from.id,chatType=ctx.chat.type;var text=(msg.text||'').trim();var isPrivate=chatType==='private';if(!isPrivate&&groupChatId!==ctx.chat.id)groupChatId=ctx.chat.id;var admin=await isAdmin(ctx,uid);if(!isPrivate&&!admin&&text){var spammed=await checkSpam(ctx,uid);if(spammed)return;stickerTracker.set(uid,0);if(msg.forward_from||msg.forward_sender_name||msg.forward_from_chat)return applyStrike(ctx,uid,'no forwards');if(hasBlockedLink(text))return applyStrike(ctx,uid,'no external links');      if(hasTmeLink(text))return applyStrike(ctx,uid,'no TG invite links');      if(hasExtMention(text))return applyStrike(ctx,uid,'no promoting other groups');      if(hasFud(text))return applyStrike(ctx,uid,'no FUD or toxic language');}if(!text)return;var lower=text.toLowerCase();var topic=detectTopic(lower);if(topic){var r=buildInfoReply(topic);if(r){if(topic==='ca')return sendImage(ctx.chat.id,r.text,r.kb?{reply_markup:r.kb}:{});if(r.img)return sendImage(ctx.chat.id,TWITTER,r.kb?{reply_markup:r.kb}:{});return ctx.reply(r.text,Object.assign({parse_mode:'HTML',disable_web_page_preview:true},r.kb?{reply_markup:r.kb}:{}));}}});");
   ln("app.post('/webhook',function(req,res){bot.handleUpdate(req.body,res);});");
   ln("app.get('/',function(req,res){res.end('OK');});");
@@ -758,7 +783,11 @@ function generateFullBotJs(d,ci){
   ln("var app=express();");
   ln("var groq=new Groq({apiKey:GROQ_API_KEY});");
   ln("app.use(express.json());");
-  ln("var caUnlocked=false,groupChatId=null,silenceTimer=null;");
+  ln("var _SF='/tmp/bot_state.json';")
+  ln("function loadState(){try{var s=JSON.parse(require('fs').readFileSync(_SF,'utf8'));caUnlocked=!!s.u;groupChatId=s.g||null;}catch(_){}}")
+  ln("function saveState(){try{require('fs').writeFileSync(_SF,JSON.stringify({u:caUnlocked,g:groupChatId}));}catch(_){}}")
+  ln("var caUnlocked=false,groupChatId=null,silenceTimer=null;")
+  ln("loadState();");
   ln("var IS_CTO=" + (IS_CTO ? "true" : "false") + ";");
   ln("var imageMessages=new Map(),strikes=new Map(),spamTracker=new Map(),stickerTracker=new Map();");
   ln("var lastReplies=[],MAX_REPLY_HIST=12;");
@@ -837,8 +866,8 @@ function generateFullBotJs(d,ci){
   ln("bot.command('ca',async function(ctx){if(!caUnlocked)return ctx.reply(notLiveMsgs[Math.floor(Math.random()*notLiveMsgs.length)]);try{var cap=await buildCaCaption();return sendImage(ctx.chat.id,cap,{reply_markup:{inline_keyboard:[[{text:E.copy+' Copy CA',copy_text:{text:CA}}]]}});}catch(_){return ctx.reply(CA);}});");
   ln("bot.command('socials',async function(ctx){return ctx.reply(buildSocialsMsg(),{parse_mode:'HTML',disable_web_page_preview:true});});");
   ln("bot.command('links',async function(ctx){return ctx.reply(buildSocialsMsg(),{parse_mode:'HTML',disable_web_page_preview:true});});");
-  ln("bot.command('" + REVEAL + "',async function(ctx){var t=ctx.chat&&ctx.chat.type;if(t==='private'){caUnlocked=true;return ctx.reply('CA is now REVEALED.');}var admin=await isAdmin(ctx,ctx.from.id);if(!admin)return;caUnlocked=true;var m=await ctx.reply('CA is now live.');autoDelete(ctx.chat.id,m.message_id,10000);});");
-  ln("bot.command('" + HIDE + "',async function(ctx){var t=ctx.chat&&ctx.chat.type;if(t==='private'){caUnlocked=false;return ctx.reply('CA is now HIDDEN.');}var admin=await isAdmin(ctx,ctx.from.id);if(!admin)return;caUnlocked=false;var m=await ctx.reply('CA is now hidden.');autoDelete(ctx.chat.id,m.message_id,10000);});");
+  ln("bot.command('" + REVEAL + "',async function(ctx){var t=ctx.chat&&ctx.chat.type;if(t==='private'){caUnlocked=true;saveState();return ctx.reply('CA is now REVEALED.');}var admin=await isAdmin(ctx,ctx.from.id);if(!admin)return;caUnlocked=true;saveState();var m=await ctx.reply('CA is now live.');autoDelete(ctx.chat.id,m.message_id,10000);});");
+  ln("bot.command('" + HIDE + "',async function(ctx){var t=ctx.chat&&ctx.chat.type;if(t==='private'){caUnlocked=false;saveState();return ctx.reply('CA is now HIDDEN.');}var admin=await isAdmin(ctx,ctx.from.id);if(!admin)return;caUnlocked=false;saveState();var m=await ctx.reply('CA is now hidden.');autoDelete(ctx.chat.id,m.message_id,10000);});");
   ln("bot.on('message',async function(ctx){var msg=ctx.message;if(!msg||!ctx.from)return;var uid=ctx.from.id,chatType=ctx.chat.type;var text=(msg.text||'').trim();var isPrivate=chatType==='private';if(!isPrivate&&groupChatId!==ctx.chat.id)groupChatId=ctx.chat.id;if(!isPrivate)resetSilence();var admin=await isAdmin(ctx,uid);if(!isPrivate&&!admin&&text){var spammed=await checkSpam(ctx,uid);if(spammed)return;stickerTracker.set(uid,0);if(msg.forward_from||msg.forward_sender_name||msg.forward_from_chat)return applyStrike(ctx,uid,'no forwards');if(hasBlockedLink(text))return applyStrike(ctx,uid,'no external links');      if(hasTmeLink(text))return applyStrike(ctx,uid,'no TG invite links');      if(hasExtMention(text))return applyStrike(ctx,uid,'no promoting other groups');      if(hasFud(text))return applyStrike(ctx,uid,'no FUD or toxic language');}if(!text)return;var lower=text.toLowerCase();var devWords=['dev','who is the dev','is dev active','dev status','dev gone','cto','community takeover','who runs','who owns','team active','team behind','who behind'];if(devWords.some(function(w){return lower.includes(w);})){if(IS_CTO){var ctoReplies=[TICKER+' is a CTO \\u2014 community takeover. Original dev is gone. The community now owns and runs this completely. No dev to rug. The holders are the team.','This is a CTO. Original dev walked away. The community stepped up and took full ownership of '+TICKER+'. Community power, not a dev.','No dev here \\u2014 '+TICKER+' is 100% community-owned. Original dev left. The community holds the wheel and is driving this forward.','CTO project. Original dev is gone. Community took over '+TICKER+' completely. That is the strength here \\u2014 no single dev can rug this.',];return ctx.reply(ctoReplies[Math.floor(Math.random()*ctoReplies.length)]);}try{var dr2=await smartAsk(systemPrompt(caUnlocked),text);if(dr2&&dr2!=='IGNORE')return ctx.reply(dr2);}catch(_){}return;}var caWords=['ca','contract','contract address','token address','where is the ca','whats the ca','what is the ca','give ca','drop ca','show ca'];if(caWords.some(function(w){return lower===w||lower.includes(w);})){if(!caUnlocked)return ctx.reply(notLiveMsgs[Math.floor(Math.random()*notLiveMsgs.length)]);try{var cap=await buildCaCaption();return sendImage(ctx.chat.id,cap,{reply_markup:{inline_keyboard:[[{text:E.copy+' Copy CA',copy_text:{text:CA}}]]}});}catch(_){return ctx.reply(CA);}}if(lower==='x'||lower==='twitter')return sendXReply(ctx);if(lower==='socials'||lower==='links')return ctx.reply(buildSocialsMsg(),{parse_mode:'HTML',disable_web_page_preview:true});if(isPrivate){try{var dr=await smartAsk(systemPrompt(caUnlocked),text);if(dr!=='IGNORE')return ctx.reply(dr);}catch(_){}return;}try{var gr=await smartAsk(systemPrompt(caUnlocked),text);if(gr&&gr!=='IGNORE')return ctx.reply(gr);}catch(_){}});");
   ln("app.post('/webhook',function(req,res){bot.handleUpdate(req.body,res);});");
   ln("app.get('/',function(req,res){res.end('OK');});");
