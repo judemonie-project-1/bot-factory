@@ -164,7 +164,7 @@ async function loadRegistry(){
 function newSession(isAdd){
   return{isAdd:!!isAdd,step:'chain',lastMsgId:null,
     d:{chain:'bsc',mode:'full',status:'launch',guardType:'standard',
-       personality:'alpha',responseMode:'focused',
+       personality:'alpha',responseMode:'focused',silenceBreaker:'3600000',
        name:'',ticker:'',ca:'',twitter:'',narrative:'',
        supply:'N/A',buyTax:'5',sellTax:'5',
        maxWalletPct:'',maxWalletTokens:'',
@@ -191,6 +191,14 @@ function rmodeBtns(uid){return{inline_keyboard:[
 function mwBtns(uid){return{inline_keyboard:[[{text:'No limit (skip)',callback_data:'w_mw_skip_'+uid},{text:'Has limit \u2014 enter %',callback_data:'w_mw_enter_'+uid}]]};}
 function lpBtns(uid){return{inline_keyboard:[[{text:'\u2705 Yes \u2014 LP is locked',callback_data:'w_lp_yes_'+uid},{text:'\u274C No \u2014 not locked',callback_data:'w_lp_no_'+uid}]]};}
 function skipBtn(uid,step){return{inline_keyboard:[[{text:'Skip',callback_data:'w_skip_'+step+'_'+uid}]]};}
+function silBtns(uid){return{inline_keyboard:[
+  [{text:'\u{1F507} Off \u2014 never auto-post',callback_data:'w_sil_0_'+uid}],
+  [{text:'\u23F1 10 minutes \u2014 very active',callback_data:'w_sil_600000_'+uid}],
+  [{text:'\u23F1 30 minutes \u2014 active',callback_data:'w_sil_1800000_'+uid}],
+  [{text:'\u23F0 1 hour \u2014 moderate (recommended)',callback_data:'w_sil_3600000_'+uid}],
+  [{text:'\u23F0 3 hours \u2014 light touch',callback_data:'w_sil_10800000_'+uid}],
+]};}
+
 function taxBtns(uid){return{inline_keyboard:[
   [{text:'No tax (0/0)',callback_data:'w_tax_0_'+uid},{text:'5/5',callback_data:'w_tax_5_'+uid},{text:'10/10',callback_data:'w_tax_10_'+uid}],
   [{text:'Enter manually',callback_data:'w_tax_manual_'+uid}],
@@ -214,9 +222,9 @@ function nextStep(s){
   var step=s.step,d=s.d,isAdd=s.isAdd;
   var flow=[];
   if(d.mode==='full')
-    flow=['chain','mode','status','pers','rmode','ca','twitter','tax','maxwallet','lp','narrative','img','bottoken'];
+    flow=['chain','mode','status','pers','rmode','sil','ca','twitter','tax','maxwallet','lp','narrative','img','bottoken'];
   else
-    flow=['chain','mode','gt','status','ca','twitter','tax','maxwallet','lp','narrative','img','bottoken'];
+    flow=['chain','mode','gt','status','sil','ca','twitter','tax','maxwallet','lp','narrative','img','bottoken'];
   if(isAdd)flow.push('renderurl');
   flow.push('confirm');
   var idx=flow.indexOf(step);
@@ -294,7 +302,17 @@ bot.command('addbot',async function(ctx){
   var uid=String(ctx.from.id);
   sessions[uid]=newSession(true);
   try{await ctx.deleteMessage();}catch(_){}
-  await showStep(ctx,sessions[uid],uid);
+  // Ask for Render URL first  check if already registered
+  var s=sessions[uid];
+  s.step='check_url';
+  var m=await ctx.reply(
+    E.wrench+' <b>Register / update bot</b>\n\n'+
+    'Paste the <b>Render URL</b> of the existing bot:\n'+
+    '<i>e.g. https://mpc-bot-31hk.onrender.com</i>\n\n'+
+    '<i>If already registered, I will recognize it instantly.</i>',
+    {parse_mode:'HTML'}
+  );
+  s.lastMsgId=m.message_id;
 });
 
 bot.command('bots',function(ctx){
@@ -379,6 +397,14 @@ bot.action(/^w_tax_manual_(.+)$/,async function(ctx){
 });
 
 // Max wallet buttons
+bot.action(/^w_sil_(\d+)_(.+)$/,async function(ctx){
+  await ctx.answerCbQuery();var val=ctx.match[1],uid=ctx.match[2],s=sessions[uid];
+  if(!s)return ctx.reply(E.xmark+' Session expired.');
+  s.d.silenceBreaker=val;s.step=nextStep(s);
+  try{await ctx.deleteMessage();}catch(_){}
+  await showStep(ctx,s,uid);
+});
+
 bot.action(/^w_mw_skip_(.+)$/,async function(ctx){
   await ctx.answerCbQuery();var uid=ctx.match[1],s=sessions[uid];if(!s)return;
   s.d.maxWalletPct='';s.step=nextStep(s);
@@ -439,6 +465,26 @@ bot.action(/^ef_image_(\d+)$/,async function(ctx){
   editSessions[uid]={idx:i,field:'image'};try{await ctx.deleteMessage();}catch(_){}
   return ctx.reply(E.pencil+' Send new bot image (photo):');
 });
+bot.action(/^ef_sil_(\d+)$/,async function(ctx){
+  await ctx.answerCbQuery();var i=parseInt(ctx.match[1]),b=registry[i];if(!b)return ctx.reply('Not found.');
+  try{await ctx.deleteMessage();}catch(_){}
+  return ctx.reply('\u23F0 Silence breaker setting:',{reply_markup:{inline_keyboard:[
+    [{text:'\u{1F507} Off',callback_data:'esl_0_'+i}],
+    [{text:'10 minutes',callback_data:'esl_600000_'+i}],
+    [{text:'30 minutes',callback_data:'esl_1800000_'+i}],
+    [{text:'1 hour (recommended)',callback_data:'esl_3600000_'+i}],
+    [{text:'3 hours',callback_data:'esl_10800000_'+i}],
+    [{text:E.xmark+' Cancel',callback_data:'ecancel'}],
+  ]}});
+});
+
+bot.action(/^esl_(\d+)_(\d+)$/,async function(ctx){
+  await ctx.answerCbQuery();var val=ctx.match[1],i=parseInt(ctx.match[2]),b=registry[i];if(!b)return ctx.reply('Not found.');
+  b.d=b.d||{};b.d.silenceBreaker=val;
+  try{await ctx.deleteMessage();}catch(_){}
+  await pushAndSave(ctx,b,'silence breaker updated');
+});
+
 bot.action(/^ef_ren_(\d+)$/,async function(ctx){
   await ctx.answerCbQuery();var i=parseInt(ctx.match[1]),b=registry[i];if(!b)return;
   b.d=b.d||{};b.d.renounced=b.d.renounced==='RENOUNCED'?'NOT RENOUNCED':'RENOUNCED';
@@ -480,7 +526,7 @@ bot.command('rebuild',async function(ctx){
   var el=registry.filter(function(b){return b.repoName&&b.ghOwner&&b.d&&b.d.ticker;});
   if(!el.length)return ctx.reply(E.wrench+' No bots with data. Use /addbot first.');
   var kb=el.map(function(b){var i=registry.indexOf(b);return[{text:b.ticker+' ('+b.chain.toUpperCase()+')',callback_data:'rbd_'+i}];});
-  return ctx.reply(E.gear+' <b>Rebuild from stored data:</b>',{parse_mode:'HTML',reply_markup:{inline_keyboard:kb}});
+  return ctx.reply(E.gear+' <b>Full rebuild from stored data:</b>\n<i>Use after changing personality, CTO mode, silence breaker etc via /edit</i>',{parse_mode:'HTML',reply_markup:{inline_keyboard:kb}});
 });
 bot.action(/^rbd_(\d+)$/,async function(ctx){
   await ctx.answerCbQuery();try{await ctx.deleteMessage();}catch(_){}
@@ -499,7 +545,7 @@ bot.command('update',async function(ctx){
   if(!ok.length)return ctx.reply(E.wrench+' No bots with data. Use /addbot.');
   var kb=ok.map(function(b){var i=registry.indexOf(b);return[{text:b.ticker,callback_data:'upd_'+i}];});
   kb.push([{text:E.gear+' Update ALL',callback_data:'upd_all'}]);
-  return ctx.reply(E.wrench+' <b>Push latest code to:</b>',{parse_mode:'HTML',reply_markup:{inline_keyboard:kb}});
+  return ctx.reply(E.wrench+' <b>Push factory improvements to:</b>\n<i>Bug fixes, new features from latest factory version</i>',{parse_mode:'HTML',reply_markup:{inline_keyboard:kb}});
 });
 bot.action(/^upd_(\d+|all)$/,async function(ctx){
   await ctx.answerCbQuery();try{await ctx.deleteMessage();}catch(_){}
@@ -528,7 +574,8 @@ bot.on('photo',async function(ctx){
     var ph=ctx.message.photo[ctx.message.photo.length-1];
     try{var lnk=await ctx.telegram.getFileLink(ph.file_id);var rb=await fetch(lnk.href);var buf=Buffer.from(await rb.arrayBuffer());
       await ctx.reply(E.gear+' Updating image...');
-      await githubUpdate(b.ghOwner,b.repoName,'siren.jpg',buf);
+      var eImgFile=(b.ticker||'token').replace(/\$/g,'').replace(/[^a-zA-Z0-9]/g,'').toLowerCase()+'.jpg';
+      await githubUpdate(b.ghOwner,b.repoName,eImgFile,buf);
       delete editSessions[uid];return ctx.reply(E.check+' Image updated! Render redeploys in ~1 min.');
     }catch(e){delete editSessions[uid];return ctx.reply(E.xmark+' Failed: '+e.message);}
   }
@@ -580,7 +627,7 @@ bot.on('text',async function(ctx){
   try{if(s.lastMsgId)await ctx.telegram.deleteMessage(ctx.chat.id,s.lastMsgId);}catch(_){}
   s.lastMsgId=null;
 
-  var btn_steps=['chain','mode','gt','status','pers','rmode','tax','maxwallet','lp'];
+  var btn_steps=['chain','mode','gt','status','pers','rmode','sil','tax','maxwallet','lp'];
   if(btn_steps.includes(s.step)){
     var mb=await ctx.reply('Please tap one of the buttons above.');s.lastMsgId=mb.message_id;return;
   }
@@ -672,7 +719,8 @@ async function doBuild(ctx,s,uid){
       await sleep(4000);
       await githubPush(ghOwner,repoName,'bot.js',Buffer.from(genBot(d,ci,d.mode)));
       await githubPush(ghOwner,repoName,'package.json',Buffer.from(genPkg(d.name,d.mode)));
-      if(s.imgBuf)await githubPush(ghOwner,repoName,'siren.jpg',s.imgBuf);
+      var imgFile=d.ticker.replace(/\$/g,'').replace(/[^a-zA-Z0-9]/g,'').toLowerCase()+'.jpg';
+      if(s.imgBuf)await githubPush(ghOwner,repoName,imgFile,s.imgBuf);
     }},
     {n:'Render service',fn:async function(){
       var oid=await renderOwner();
@@ -822,7 +870,7 @@ function genGuard(d,ci){
   ln("function loadState(){try{var s=JSON.parse(fs.readFileSync(_SF,'utf8'));caUnlocked=!!s.u;groupChatId=s.g||null;}catch(_){}}");
   ln("function saveState(){try{fs.writeFileSync(_SF,JSON.stringify({u:caUnlocked,g:groupChatId}));}catch(_){}}");
   ln("loadState();");
-  ln("var IMG=path.join(__dirname,'siren.jpg'),IMG_BUF=null;");
+  ln("var IMG=path.join(__dirname,'"+(d.ticker.replace(/\\$/g,'').replace(/[^a-zA-Z0-9]/g,'').toLowerCase())+".jpg'),IMG_BUF=null;");
   ln("try{if(fs.existsSync(IMG))IMG_BUF=fs.readFileSync(IMG);}catch(_){}");
   ln("var imgMsgs=new Map(),strikes=new Map(),spamTracker=new Map();");
   ln("async function delPrevImg(cid){var mid=imgMsgs.get(cid);if(mid){try{await bot.telegram.deleteMessage(cid,mid);}catch(_){}imgMsgs.delete(cid);}}");
@@ -910,10 +958,11 @@ function genFull(d,ci){
   ln("var app=express();app.use(express.json());");
   ln("var _SF='/tmp/state.json';");
   ln("var caUnlocked=false,groupChatId=null,silTimer=null;");
+  ln("var SIL_DELAY=" + (d.silenceBreaker||"3600000") + ";");
   ln("function loadState(){try{var s=JSON.parse(fs.readFileSync(_SF,'utf8'));caUnlocked=!!s.u;groupChatId=s.g||null;}catch(_){}}");
   ln("function saveState(){try{fs.writeFileSync(_SF,JSON.stringify({u:caUnlocked,g:groupChatId}));}catch(_){}}");
   ln("loadState();");
-  ln("var IMG=path.join(__dirname,'siren.jpg'),IMG_BUF=null;");
+  ln("var IMG=path.join(__dirname,'"+(d.ticker.replace(/\\$/g,'').replace(/[^a-zA-Z0-9]/g,'').toLowerCase())+".jpg'),IMG_BUF=null;");
   ln("try{if(fs.existsSync(IMG))IMG_BUF=fs.readFileSync(IMG);}catch(_){}");
   ln("var imgMsgs=new Map(),strikes=new Map(),spamTracker=new Map(),lastReplies=[];");
   ln("var SHOUTOUT_ON=false,shoutTimer=null;");
@@ -948,7 +997,7 @@ function genFull(d,ci){
   ln("var SIL_ANG=['2-3 lines. Why hold "+TICKER+" right now.','2-3 lines. "+TICKER+" fundamentals: renounced, LP locked.','2-3 lines. Being early to "+TICKER+".','2-3 lines. "+TICKER+" community is building.','2-3 lines. The move in "+TICKER+" is still early.'];");
   ln("var silIdx=0;");
   ln("async function fireSilence(){if(!groupChatId)return resetSil();try{var p=SIL_ANG[silIdx%SIL_ANG.length];silIdx++;var cap=await smartAsk(p);if(cap&&cap!=='IGNORE')await sendImg(groupChatId,cap,{});}catch(_){}resetSil();}");
-  ln("function resetSil(){if(silTimer)clearTimeout(silTimer);silTimer=setTimeout(fireSilence,10*60*1000);}");
+  ln("function resetSil(){if(silTimer)clearTimeout(silTimer);if(SIL_DELAY===0||SIL_DELAY==='0')return;silTimer=setTimeout(fireSilence,parseInt(SIL_DELAY));}");
 
   // Shoutout
   ln("async function doShoutout(){if(!groupChatId||!SHOUTOUT_ON)return;try{var admins=await bot.telegram.getChatAdministrators(groupChatId);var humans=admins.filter(function(a){return!a.user.is_bot;});var names=humans.map(function(a){return a.user.username?'@'+a.user.username:a.user.first_name;});if(!names.length)return schedShout();var ppt='1-2 warm lines. Shoutout to admins keeping "+TICKER+" alive: '+names.join(', ')+'. Sound genuine. Tag them.';var msg=await smartAsk(ppt);if(msg&&msg!=='IGNORE'){var sm=await bot.telegram.sendMessage(groupChatId,msg);setTimeout(function(){try{bot.telegram.deleteMessage(groupChatId,sm.message_id);}catch(_){}},7200000);}}catch(_){}schedShout();}");
@@ -991,7 +1040,7 @@ function genFull(d,ci){
   ln("async function regWH(){if(!WEBHOOK_URL)return;var url=WEBHOOK_URL+'/webhook';for(var i=0;i<5;i++){try{if(await bot.telegram.setWebhook(url)){console.log('Webhook:',url);return;}}catch(e){console.log('WH '+(i+1)+':',e.message);}await new Promise(function(r){setTimeout(r,3000);});}}");
   ln("process.on('uncaughtException',function(e){console.error(e.message);});");
   ln("process.on('unhandledRejection',function(e){console.error(e&&e.message);});");
-  ln("app.listen(PORT,async function(){console.log('"+TICKER+" bot port '+PORT);try{await new Promise(function(r){setTimeout(r,2000);});}catch(_){}try{await regWH();}catch(e){console.log(e.message);}try{resetSil();}catch(_){}try{schedShout();}catch(_){}setInterval(function(){if(WEBHOOK_URL)try{fetch(WEBHOOK_URL+'/health').catch(function(){});}catch(_){}},4*60*1000);console.log('"+TICKER+" bot live');});");
+  ln("app.listen(PORT,async function(){console.log('"+TICKER+" bot port '+PORT);try{await new Promise(function(r){setTimeout(r,2000);});}catch(_){}try{await regWH();}catch(e){console.log(e.message);}if(parseInt(SIL_DELAY||'0')>0)try{resetSil();}catch(_){}try{schedShout();}catch(_){}setInterval(function(){if(WEBHOOK_URL)try{fetch(WEBHOOK_URL+'/health').catch(function(){});}catch(_){}},4*60*1000);console.log('"+TICKER+" bot live');});");
   return L.join('\n');
 }
 
