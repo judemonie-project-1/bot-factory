@@ -7,11 +7,27 @@
     "repoName": "mpc-bot-31hk",
     "ghOwner": "judemonie-project-1",
     "data": {
-      "status": "cto",
-      "ticker": "$Mpc",
+      "chain": "bsc",
       "mode": "full",
+      "status": "cto",
+      "personality": "hype",
+      "tokenName": "MPC",
+      "ticker": "$MPC",
+      "ca": "0x5794FF15f6bd01Eaa25DB48353886810467B0D1D",
+      "supply": "1,000,000,000",
+      "maxWalletPct": "",
+      "maxWalletTokens": "",
+      "buyTax": "0",
+      "sellTax": "0",
       "twitter": "https://x.com/Mpc_cto",
-      "personality": "Alpha"
+      "website": "",
+      "renounced": "RENOUNCED",
+      "locked": "LOCKED",
+      "narrative": "Mubarak PFP ☪️\nWhere Middle Eastern legend meets pixel-powered meme energy.\nBorn from culture, rising with community, and blessed with barakah.",
+      "revealCmd": "",
+      "hideCmd": "",
+      "renderUrl": "https://mpc-bot-31hk.onrender.com",
+      "repoName": "mpc-bot-31hk"
     },
     "builtAt": 1775604179857
   }
