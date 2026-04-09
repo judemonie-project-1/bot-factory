@@ -252,8 +252,11 @@ async function showStep(ctx,s,uid){
   if(step==='status')  return say(ctx,s,E.rocket+' Project status:',statusBtns(uid));
   if(step==='pers')    return say(ctx,s,E.star+' Bot personality:',persBtns(uid));
   if(step==='rmode')   return say(ctx,s,'\u{1F4AC} Response mode:',rmodeBtns(uid));
+  if(step==='sil')    return say(ctx,s,E.bell+' <b>Silence breaker?</b>\nBot posts when group is quiet for:',silBtns(uid));
+  if(step==='stage')  return say(ctx,s,E.rocket+' <b>Project stage?</b>',stageBtns(uid));
   if(step==='ca')      return say(ctx,s,E.search+' <b>Contract address?</b>\n<i>Paste the CA and I will auto-fetch token data from BSCScan + DexScreener</i>');
   if(step==='twitter') return say(ctx,s,E.pencil+' Twitter/X link?'+(d.twitter?'\n<i>Auto-fetched: '+d.twitter+' \u2014 send new one to change, or tap Skip</i>':'\n<i>Paste the link or tap Skip</i>'),skipBtn(uid,'twitter'));
+  if(step==='tg')     return say(ctx,s,E.link+' <b>Telegram group link?</b>\n<i>e.g. https://t.me/yourgroup (or skip)</i>');
   if(step==='tax')     return say(ctx,s,E.pencil+' Buy / sell tax?'+(d.buyTax&&d.sellTax&&d.buyTax!=='5'?'\n<i>Auto-detected: '+d.buyTax+'% / '+d.sellTax+'%</i>':''),taxBtns(uid));
   if(step==='maxwallet')return say(ctx,s,E.pencil+' Max wallet limit?',mwBtns(uid));
   if(step==='lp')      return say(ctx,s,E.pencil+' Is LP (liquidity) locked?',lpBtns(uid));
@@ -291,36 +294,23 @@ bot.command('start',function(ctx){
   ownerChatIds.add(ctx.chat.id);
   return ctx.reply(
     E.rocket+' <b>Bot Factory</b>\n'+
-    '<i>The fastest way to launch a Telegram community bot for your token.</i>\n\n'+
-
+    '<i>Build and manage Telegram community bots for your token.</i>\n\n'+
     E.shield+' <b>Two bot types</b>\n'+
-    '\u2022 <b>Full</b> \u2014 AI replies, moderation, silence breaker, admin shoutouts, /shill\n'+
-    '\u2022 <b>Guard</b> \u2014 moderation only, no AI, hardcoded replies\n\n'+
-
-    E.star+' <b>What happens when you /build</b>\n'+
-    '\u2022 Token data fetched automatically\n'+
-    '\u2022 Bot code generated with your details\n'+
-    '\u2022 Deployed and live in ~3 minutes\n'+
-    '\u2022 Registered automatically \u2014 no extra steps\n'+
-    '\u2022 Status reports at 10am and 10pm WAT daily\n\n'+
-
-    '<b>\u2500 Build \u2500</b>\n'+
-    '/build \u2014 Build a new bot from scratch\n'+
-    '/addbot \u2014 Register a bot already running elsewhere\n\n'+
-
-    '<b>\u2500 Manage \u2500</b>\n'+
-    '/bots \u2014 See all your bots\n'+
-    '/edit \u2014 Change CA, stage, LP, tax, image, TG link etc\n'+
-    '/rebuild \u2014 Regenerate and redeploy a bot\n'+
-    '/update \u2014 Push latest improvements to all bots\n\n'+
-
-    '<b>\u2500 Monitor \u2500</b>\n'+
-    '/stats \u2014 Live status, uptime and response time for all bots\n'+
-    '/cleanup \u2014 Delete unused services and repos\n\n'+
-
-    '<b>\u2500 Settings \u2500</b>\n'+
-    '/addgroq \u2014 Add AI key (auto-pushes to all bots)\n'+
-    '/cancel \u2014 Cancel any active operation',
+    '\u2022 <b>Full</b> \u2014 AI replies, moderation, silence breaker, /shill\n'+
+    '\u2022 <b>Guard</b> \u2014 moderation only, no AI\n\n'+
+    E.star+' <b>After /build</b>\n'+
+    '\u2022 Bot deployed and registered automatically\n'+
+    '\u2022 Status reports at 10am + 10pm WAT daily\n\n'+
+    '<b>Commands</b>\n'+
+    '/build \u2014 Build a new bot\n'+
+    '/bots \u2014 List all your bots\n'+
+    '/edit \u2014 Edit bot details (CA, stage, LP, TG, silence breaker...)\n'+
+    '/rebuild \u2014 Redeploy with latest code\n'+
+    '/stats \u2014 Live status for all bots\n'+
+    '/cleanup \u2014 Delete unused services\n'+
+    '/addgroq \u2014 Add AI key\n'+
+    '/addbot \u2014 Register existing bot\n'+
+    '/cancel \u2014 Cancel any operation',
     {parse_mode:'HTML'}
   );
 });
@@ -497,7 +487,9 @@ bot.action(/^epk_(\d+)$/,async function(ctx){
   var d=b.d||{};
   try{await ctx.deleteMessage();}catch(_){}
   return ctx.reply(E.wrench+' <b>Edit '+b.ticker+'</b>\nWhat to change?',{parse_mode:'HTML',reply_markup:{inline_keyboard:[
-    [{text:'Twitter/X link',callback_data:'ef_twitter_'+i}],
+    [{text:'Twitter/X: '+(d.twitter?'set':'not set'),callback_data:'ef_twitter_'+i}],
+    [{text:'TG Group: '+(d.tg?'set':'not set'),callback_data:'ef_tg_'+i}],
+    [{text:'Silence Breaker: '+({'0':'Off','600000':'10 min','1800000':'30 min','3600000':'1 hr','7200000':'2 hr','10800000':'3 hr'}[String(d.silenceBreaker||'3600000')]||'1 hr'),callback_data:'ef_sil_'+i}],
     [{text:'Narrative',callback_data:'ef_narrative_'+i}],
     [{text:'Supply',callback_data:'ef_supply_'+i}],
     [{text:'Tax (buy/sell)',callback_data:'ef_tax_'+i}],
@@ -539,6 +531,29 @@ bot.action(/^esg_(live|prelaunch|noCA)_(\d+)$/,async function(ctx){
   b.d=b.d||{};b.d.stage=stage;
   try{await ctx.deleteMessage();}catch(_){}
   await pushAndSave(ctx,b,'stage updated to '+stage);
+});
+
+bot.action(/^ef_sil_(\d+)$/,async function(ctx){
+  await ctx.answerCbQuery();var i=parseInt(ctx.match[1]),b=registry[i];if(!b)return;
+  try{await ctx.deleteMessage();}catch(_){}
+  var cur=String(b.d&&b.d.silenceBreaker||'3600000');
+  var opts={
+    '0':'Off','600000':'10 min','1800000':'30 min',
+    '3600000':'1 hr','7200000':'2 hr','10800000':'3 hr'
+  };
+  var kb=Object.keys(opts).map(function(v){
+    return [{text:(v===cur?'\u2705 ':'')+opts[v],callback_data:'esil_'+v+'_'+i}];
+  });
+  kb.push([{text:E.xmark+' Cancel',callback_data:'ecancel'}]);
+  return ctx.reply(E.bell+' <b>Silence Breaker</b>\nBot posts when group is quiet for this long:',{parse_mode:'HTML',reply_markup:{inline_keyboard:kb}});
+});
+
+bot.action(/^esil_([0-9]+)_(\d+)$/,async function(ctx){
+  await ctx.answerCbQuery();var val=ctx.match[1],i=parseInt(ctx.match[2]),b=registry[i];if(!b)return;
+  b.d=b.d||{};b.d.silenceBreaker=val;
+  try{await ctx.deleteMessage();}catch(_){}
+  var labels={'0':'Off','600000':'10 min','1800000':'30 min','3600000':'1 hr','7200000':'2 hr','10800000':'3 hr'};
+  await pushAndSave(ctx,b,'Silence breaker set to '+(labels[val]||val));
 });
 
 bot.action(/^ef_sil_(\d+)$/,async function(ctx){
@@ -1739,15 +1754,14 @@ app.listen(PORT,async function(){
   try{await regWebhook();}catch(e){console.log('Hook:',e.message);}
   try{
     await bot.telegram.setMyCommands([
-      {command:'build',   description:'Build a new bot'},
-      {command:'addbot',  description:'Register existing bot'},
-      {command:'bots',    description:'List your bots'},
-      {command:'edit',    description:'Edit a bot'},
-      {command:'rebuild', description:'Full rebuild from stored data'},
-      {command:'update',  description:'Push latest code to bot(s)'},
-      {command:'stats',   description:'Health check'},
-      {command:'addgroq', description:'Add AI key'},
-      {command:'cancel',  description:'Cancel current operation'},
+      {command:'build',    description:'Build a new community bot'},
+      {command:'bots',     description:'List all your bots'},
+      {command:'edit',     description:'Edit bot details'},
+      {command:'rebuild',  description:'Redeploy a bot with latest code'},
+      {command:'stats',    description:'Live status report for all bots'},
+      {command:'cleanup',  description:'Delete unused services and repos'},
+      {command:'addgroq',  description:'Add AI key (auto-pushes to all bots)'},
+      {command:'cancel',   description:'Cancel current operation'},
     ]);
   }catch(e){console.log('Commands:',e.message);}
   setInterval(function(){if(WEBHOOK_URL)try{fetch(WEBHOOK_URL+'/health').catch(function(){});}catch(_){}},4*60*1000);
