@@ -503,10 +503,10 @@ bot.action(/^epk_(\d+)$/,async function(ctx){
   ]}});
 });
 
-bot.action(/^ef_(twitter|narrative|supply|tax|maxwallet)_(\d+)$/,async function(ctx){
+bot.action(/^ef_(twitter|tg|narrative|supply|tax|maxwallet)_(\d+)$/,async function(ctx){
   await ctx.answerCbQuery();var field=ctx.match[1],i=parseInt(ctx.match[2]),uid=String(ctx.from.id);
   editSessions[uid]={idx:i,field:field};
-  var asks={twitter:'New Twitter/X link:',narrative:'New narrative (1-2 sentences):',supply:'New supply (e.g. 1B or 1,000,000,000):',tax:'New tax as buy/sell (e.g. 5/5):',maxwallet:'New max wallet % (e.g. 4.9 or - to remove):'};
+  var asks={twitter:'New Twitter/X link:',tg:'New Telegram group link (e.g. https://t.me/yourgroup):',narrative:'New narrative (1-2 sentences):',supply:'New supply (e.g. 1B or 1,000,000,000):',tax:'New tax as buy/sell (e.g. 5/5):',maxwallet:'New max wallet % (e.g. 4.9 or - to remove):'};
   try{await ctx.deleteMessage();}catch(_){}
   return ctx.reply(E.pencil+' '+asks[field]);
 });
@@ -937,6 +937,7 @@ bot.on('text',async function(ctx){
     try{await ctx.deleteMessage();}catch(_){}
     b.d=b.d||{};
     if(es.field==='twitter')  b.d.twitter=text;
+    if(es.field==='tg')       b.d.tg=text.startsWith('http')||text.startsWith('@')?text:'';
     if(es.field==='narrative')b.d.narrative=text;
     if(es.field==='supply')   b.d.supply=text;
     if(es.field==='maxwallet')b.d.maxWalletPct=(text==='-'?'':text);
