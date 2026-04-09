@@ -642,7 +642,17 @@ bot.command('cleanup',async function(ctx){
     return ctx.reply(E.check+' Nothing to clean up! All services match your registered bots.');
   }
   var uid=String(ctx.from.id);
-  cleanupSessions[uid]={renderOrphans:rOrphans,ghOrphans:gOrphans};
+  // Also find orphan cron jobs
+  var cronJobs=await getCronJobs();
+  var regNames=new Set(registry.map(function(b){return(b.repoName||'').toLowerCase();}));
+  var cOrphans=cronJobs.filter(function(j){
+    // Match by URL  if the job URL contains a service not in registry
+    var matched=registry.some(function(b){
+      return b.url&&j.url&&j.url.includes(b.url.replace('https://',''));
+    });
+    return !matched&&j.url&&j.url.includes('.onrender.com');
+  });
+  cleanupSessions[uid]={renderOrphans:rOrphans,ghOrphans:gOrphans,cronOrphans:cOrphans};
   var msg=E.warn+' <b>Orphaned services found</b>\n\n';
   if(rOrphans.length){
     msg+='<b>Hosting services ('+rOrphans.length+'):</b>\n';
@@ -654,6 +664,11 @@ bot.command('cleanup',async function(ctx){
     gOrphans.forEach(function(r,i){msg+=(i+1)+'. '+r.name+'\n';});
     msg+='\n';
   }
+  if(cOrphans.length){
+    msg+='<b>Scheduled jobs ('+cOrphans.length+'):</b>\n';
+    cOrphans.forEach(function(j,i){msg+=(i+1)+'. '+j.title+'\n';});
+    msg+='\n';
+  }
   msg+='These are NOT in your bot registry.\n<i>Your active bots are safe.</i>';
   var kb={inline_keyboard:[
     [{text:E.xmark+' Delete ALL orphans',callback_data:'cln_all_'+uid}],
@@ -663,6 +678,27 @@ bot.command('cleanup',async function(ctx){
   if(gOrphans.length)kb.inline_keyboard.splice(1,0,[{text:'\u{1F5C4}\uFE0F Delete repos only',callback_data:'cln_gh_'+uid}]);
   return ctx.reply(msg,{parse_mode:'HTML',reply_markup:kb});
 });
+
+async function getCronJobs(){
+  var all=[];
+  try{
+    var r=await fetch('https://api.cron-job.org/jobs',{
+      headers:{'Authorization':'Bearer '+CRON_KEY,'Content-Type':'application/json'}
+    });
+    var d=await r.json();
+    if(d.jobs&&Array.isArray(d.jobs)){
+      all=d.jobs.map(function(j){return{id:j.jobId,title:j.title,url:j.url};});
+    }
+  }catch(e){console.log('Cron list:',e.message);}
+  return all;
+}
+
+async function deleteCronJob(jobId){
+  await fetch('https://api.cron-job.org/jobs/'+jobId,{
+    method:'DELETE',
+    headers:{'Authorization':'Bearer '+CRON_KEY,'Content-Type':'application/json'}
+  });
+}
 
 async function doCleanup(ctx,uid,renderOnly,ghOnly){
   var cs=cleanupSessions[uid];if(!cs)return ctx.reply('Session expired.');
@@ -682,6 +718,14 @@ async function doCleanup(ctx,uid,renderOnly,ghOnly){
       var r=cs.ghOrphans[j];
       try{await deleteGithubRepo(r.full_name);deleted.push('Repo: '+r.name);}
       catch(e){failed.push('Repo: '+r.name+' ('+e.message.slice(0,40)+')');}
+    }
+  }
+  // Always delete orphan cron jobs regardless of renderOnly/ghOnly
+  if(cs.cronOrphans&&cs.cronOrphans.length){
+    for(var k=0;k<cs.cronOrphans.length;k++){
+      var cj=cs.cronOrphans[k];
+      try{await deleteCronJob(cj.id);deleted.push('Cron job: '+cj.title);}
+      catch(e){failed.push('Cron job: '+cj.title+' ('+e.message.slice(0,40)+')');}
     }
   }
   try{await ctx.telegram.deleteMessage(ctx.chat.id,pm.message_id);}catch(_){}
