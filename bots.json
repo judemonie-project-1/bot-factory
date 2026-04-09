@@ -49,7 +49,7 @@
       "sellTax": "0",
       "maxWalletPct": "N/A",
       "renounced": "RENOUNCED",
-      "locked": "LOCKED",
+      "locked": "BURNED",
       "revealCmd": "",
       "hideCmd": "",
       "renderUrl": "https://mpc-bot-31hk.onrender.com",
