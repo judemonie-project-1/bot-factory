@@ -54,7 +54,8 @@
       "hideCmd": "",
       "renderUrl": "https://mpc-bot-31hk.onrender.com",
       "repoName": "mpc-bot-31hk",
-      "stage": "live"
+      "stage": "live",
+      "tg": "https://t.me/mpccto"
     }
   }
 ]
