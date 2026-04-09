@@ -189,7 +189,11 @@ function rmodeBtns(uid){return{inline_keyboard:[
   [{text:'\u{1F4AC} Conversational \u2014 responds to ? & mentions',callback_data:'w_rmode_conversational_'+uid}],
 ]};}
 function mwBtns(uid){return{inline_keyboard:[[{text:'No limit (skip)',callback_data:'w_mw_skip_'+uid},{text:'Has limit \u2014 enter %',callback_data:'w_mw_enter_'+uid}]]};}
-function lpBtns(uid){return{inline_keyboard:[[{text:'\u2705 Yes \u2014 LP is locked',callback_data:'w_lp_yes_'+uid},{text:'\u274C No \u2014 not locked',callback_data:'w_lp_no_'+uid}]]};}
+function lpBtns(uid){return{inline_keyboard:[
+  [{text:'\u2705 Locked \u2014 LP is locked',callback_data:'w_lp_locked_'+uid}],
+  [{text:'\u{1F525} Burned \u2014 LP is burned (stronger)',callback_data:'w_lp_burned_'+uid}],
+  [{text:'\u274C Not locked \u2014 no lock or burn',callback_data:'w_lp_no_'+uid}],
+]};}
 function skipBtn(uid,step){return{inline_keyboard:[[{text:'Skip',callback_data:'w_skip_'+step+'_'+uid}]]};}
 function stageBtns(uid){return{inline_keyboard:[
   [{text:'\u{1F7E2} Already live \u2014 CA is public, token is trading',callback_data:'w_stage_live_'+uid}],
@@ -387,7 +391,15 @@ wizardBtn('^w_gt_(standard|strict|soft)_(.+)$','guardType');
 wizardBtn('^w_status_(launch|cto)_(.+)$','status');
 wizardBtn('^w_pers_(alpha|professional|hype|community)_(.+)$','personality');
 wizardBtn('^w_rmode_(focused|conversational)_(.+)$','responseMode');
-wizardBtn('^w_lp_(yes|no)_(.+)$','locked',function(m){return m[1]==='yes'?'LOCKED':'NOT LOCKED';});
+bot.action(/^w_lp_(locked|burned|no)_(.+)$/,async function(ctx){
+  await ctx.answerCbQuery();
+  var val=ctx.match[1],uid=ctx.match[2],s=sessions[uid];
+  if(!s)return ctx.reply(E.xmark+' Session expired.');
+  s.d.locked=val==='locked'?'LOCKED':val==='burned'?'BURNED':'NOT LOCKED';
+  s.step=nextStep(s);
+  try{await ctx.deleteMessage();}catch(_){}
+  await showStep(ctx,s,uid);
+});
 
 bot.action(/^w_mode_(full|guard)_(.+)$/,async function(ctx){
   await ctx.answerCbQuery();
@@ -491,7 +503,7 @@ bot.action(/^epk_(\d+)$/,async function(ctx){
     [{text:'Tax (buy/sell)',callback_data:'ef_tax_'+i}],
     [{text:'Max wallet %',callback_data:'ef_maxwallet_'+i}],
     [{text:'Renounced: '+(d.renounced||'NOT RENOUNCED'),callback_data:'ef_ren_'+i}],
-    [{text:'LP Locked: '+(d.locked||'NOT LOCKED'),callback_data:'ef_lp_'+i}],
+    [{text:'LP: '+(d.locked||'NOT LOCKED')+' \u2014 tap to change',callback_data:'ef_lp_'+i}],
     [{text:'Bot image',callback_data:'ef_image_'+i}],
     [{text:(d.status==='cto'?E.rocket+' Switch to Launch':E.shield+' Switch to CTO'),callback_data:'ef_cto_'+i}],
     [{text:E.xmark+' Cancel',callback_data:'ecancel'}],
@@ -556,7 +568,7 @@ bot.action(/^ef_ren_(\d+)$/,async function(ctx){
 });
 bot.action(/^ef_lp_(\d+)$/,async function(ctx){
   await ctx.answerCbQuery();var i=parseInt(ctx.match[1]),b=registry[i];if(!b)return;
-  b.d=b.d||{};b.d.locked=b.d.locked==='LOCKED'?'NOT LOCKED':'LOCKED';
+  b.d=b.d||{};var _lps=['LOCKED','BURNED','NOT LOCKED'];var _li=_lps.indexOf(b.d.locked||'LOCKED');b.d.locked=_lps[(_li+1)%3];
   try{await ctx.deleteMessage();}catch(_){}
   await pushAndSave(ctx,b,'LP toggled to '+b.d.locked);
 });
@@ -762,6 +774,13 @@ bot.action(/^rbd_(\d+)$/,async function(ctx){
   try{
     await githubUpdate(b.ghOwner,b.repoName,'bot.js',Buffer.from(genBot(b.d,CHAIN[b.chain]||CHAIN.bsc,b.mode)));
     await githubUpdate(b.ghOwner,b.repoName,'package.json',Buffer.from(genPkg(b.d.name,b.mode)));
+    // Update all Groq keys on the service
+    if(b.svcId&&b.mode==='full'&&groqPool.length){
+      try{
+        var envUpdate=groqPool.map(function(k,i){return{key:'GROQ_KEY_'+(i+1),value:k};});
+        await renderEnv(b.svcId,envUpdate);
+      }catch(_){}
+    }
     // Try to also rename image from siren.jpg to ticker name if needed
     try{
       var tickerFile=(b.ticker||'token').replace(/\$/g,'').replace(/[^a-zA-Z0-9]/g,'').toLowerCase()+'.jpg';
@@ -1011,7 +1030,10 @@ async function doBuild(ctx,s,uid){
     {n:'Render service',fn:async function(){
       var oid=await renderOwner();
       var ev=[{key:'BOT_TOKEN',value:d.botToken},{key:'WEBHOOK_URL',value:guessUrl}];
-      if(d.mode==='full')ev.push({key:'GROQ_API_KEY',value:groqKey});
+      if(d.mode==='full'){
+        ev.push({key:'GROQ_API_KEY',value:groqKey});
+        groqPool.forEach(function(k,i){ev.push({key:'GROQ_KEY_'+(i+1),value:k});});
+      }
       var svc=await renderCreate(repoName,ghOwner,oid,ev);
       svcId=svc.id;actualUrl=(svc.serviceDetails&&svc.serviceDetails.url)||guessUrl;
       if(actualUrl!==guessUrl){var uv=ev.map(function(v){return v.key==='WEBHOOK_URL'?{key:'WEBHOOK_URL',value:actualUrl}:v;});await renderEnv(svcId,uv);}
@@ -1464,7 +1486,12 @@ function genFull(d,ci){
   ln("var fs=require('fs');");
   ln("var path=require('path');");
   ln("var BOT_TOKEN=process.env.BOT_TOKEN;");
-  ln("var GROQ_API_KEY=process.env.GROQ_API_KEY;");
+  ln("var _groqPool=[];");
+  ln("for(var _gi=1;_gi<=10;_gi++){var _gk=process.env['GROQ_KEY_'+_gi];if(_gk)_groqPool.push(_gk.trim());}");
+  ln("if(process.env.GROQ_API_KEY&&_groqPool.indexOf(process.env.GROQ_API_KEY.trim())===-1)_groqPool.unshift(process.env.GROQ_API_KEY.trim());");
+  ln("var _groqIdx=0;");
+  ln("function nextGroqKey(){if(!_groqPool.length)return'';var k=_groqPool[_groqIdx%_groqPool.length];_groqIdx++;return k;}");
+
   ln("var WEBHOOK_URL=(process.env.WEBHOOK_URL||'').trim();");
   ln("var PORT=process.env.PORT||3000;");
   ln("var TICKER='"+TICKER+"';");
@@ -1474,7 +1501,7 @@ function genFull(d,ci){
   ln("var IS_CTO="+IS_CTO+";");
   ln("var RESPONSE_MODE='"+RMODE+"';");
   ln("var bot=new Telegraf(BOT_TOKEN);");
-  ln("var groq=new Groq({apiKey:GROQ_API_KEY});");
+  // groq client created per request in ask()
   ln("var app=express();app.use(express.json());");
   ln("var _SF='/tmp/state.json';");
   ln("var caUnlocked="+(STAGE==='live'?'true':'false')+",groupChatId=null,silTimer=null;");
@@ -1513,7 +1540,18 @@ function genFull(d,ci){
   ].join("\\n")+"'+(TWITTER?'\\nTwitter: '+TWITTER:'')+'\\nNarrative: '+"+NARR+"+'\\nPersonality: "+PERS_STYLE.replace(/'/g,"\\'")+"\\nRULES: 2-4 lines max. Natural and professional. Never share TG group link. Never repeat reply. If hype/casual/no question: reply IGNORE exactly.';");
   ln("}");
 
-  ln("async function ask(msg){var r=await groq.chat.completions.create({model:'llama-3.3-70b-versatile',temperature:1.0,max_tokens:160,messages:[{role:'system',content:sysPrompt()},{role:'user',content:msg}]});return r.choices[0].message.content.trim();}");
+  ln("async function ask(msg){");
+  ln("  var lastErr,attempts=Math.max(1,_groqPool.length);");
+  ln("  for(var _ai=0;_ai<attempts;_ai++){");
+  ln("    try{");
+  ln("      var _gc=new Groq({apiKey:nextGroqKey()});");
+  ln("      var r=await _gc.chat.completions.create({model:'llama-3.3-70b-versatile',temperature:1.0,max_tokens:160,messages:[{role:'system',content:sysPrompt()},{role:'user',content:msg}]});");
+  ln("      return r.choices[0].message.content.trim();");
+  ln("    }catch(e){lastErr=e;console.log('Groq attempt '+(_ai+1)+' failed:',e.message);}");
+  ln("  }");
+  ln("  throw lastErr||new Error('All Groq keys failed');");
+  ln("}");
+
   ln("async function smartAsk(msg){var r=await ask(msg);if(lastReplies.includes(r))r=await ask(msg+' Give a completely different response.');lastReplies.push(r);if(lastReplies.length>12)lastReplies.shift();return r;}");
 
   // Silence breaker
@@ -1563,17 +1601,16 @@ function genFull(d,ci){
   ln("bot.command('socials',function(ctx){return ctx.reply('<a href=\\'"+CHART+"\\'>Chart</a> | <a href=\\'"+BUY_URL+"\\'>"+DEX+"</a>'+(TWITTER?' | <a href=\\''+TWITTER+'\\'>Twitter</a>':'')+(WEBSITE?' | <a href=\\''+WEBSITE+'\\'>Website</a>':''),{parse_mode:'HTML',disable_web_page_preview:true});});");
   ln("bot.command('links',function(ctx){return ctx.reply('<a href=\\'"+CHART+"\\'>Chart</a> | <a href=\\'"+BUY_URL+"\\'>"+DEX+"</a>'+(TWITTER?' | <a href=\\''+TWITTER+'\\'>Twitter</a>':'')+(WEBSITE?' | <a href=\\''+WEBSITE+'\\'>Website</a>':''),{parse_mode:'HTML',disable_web_page_preview:true});});");
   ln("bot.command('info',function(ctx){return ctx.reply('<b>"+TICKER+"</b> \\u2014 "+CHAIN_LBL+"\\n\\nSupply: "+SUPPLY+"\\n"+(MAXPCT?'Max Wallet: '+MAXPCT+'\\n':'')+"Tax: "+BUYTAX+"% buy / "+SELLTAX+"% sell\\nContract: "+RENOUNCED+"\\nLP: "+LOCKED+"'+(TWITTER?'\\nTwitter: '+TWITTER:''),{parse_mode:'HTML',disable_web_page_preview:true});});");
-  ln("bot.command('shill',async function(ctx){");
+    ln("bot.command('shill',async function(ctx){");
   ln("  try{");
-  ln("    var p='Write a punchy shill for "+TICKER+", a "+CHAIN_LBL+" meme token. '+");
-  ln("      'Opener: catchy question. Then: "+TICKER+" is the answer! Then: 1-2 lines (community, renounced, locked, narrative). '+");
-  ln("      'Then: load up line. Max 6 lines total. No hashtags. Real energy.';");
-  ln("    var sm=await smartAsk(p);");
-  ln("    if(!sm||sm==='IGNORE')sm='"+TICKER+" is the move. Community owns it. Renounced and locked. Load up.';");
-  ln("    var caLine=caUnlocked?'\\nCA:\\n'+CA:'\\nCA coming soon. Stay close.';");
+  ln("    var sp='3-4 lines only. Shill '+TICKER+' on BSC. One short curious question. Then: '+TICKER+' is the answer. One real reason (community or narrative or fundamentals). One safety line: renounced + '+LOCKED+'. Short CTA. No hype words. Max 2 emojis. Sound like a real person.';");
+  ln("    var sm=await smartAsk(sp);");
+  ln("    if(!sm||sm==='IGNORE'||sm.split('\\n').length>8)sm=TICKER+' \\u2014 community-owned. Renounced. '+LOCKED+'.\\nNarrative is real. Cap is low. Load up.';");
+  ln("    var caLine=caUnlocked?'\\n\\nCA:\\n'+CA:'\\n\\nCA dropping soon.';");
   ln("    await sendImg(ctx.chat.id,sm+caLine,{});");
-  ln("  }catch(e){ctx.reply('"+TICKER+" is the move. Community owns it. Load up.');}");
-  ln("});");
+  ln("  }catch(e){ctx.reply(TICKER+' is the move. Load up.');}");
+  ln("});")
+;
 
   if(STAGE==='prelaunch'){
     ln("bot.command('"+REVEAL+"',async function(ctx){var t=ctx.chat&&ctx.chat.type;if(t==='private'){caUnlocked=true;saveState();return ctx.reply('CA is now REVEALED.');}var a=await isAdmin(ctx,ctx.from.id);if(!a)return;caUnlocked=true;saveState();var m=await ctx.reply('CA is now live.');autoDel(ctx.chat.id,m.message_id,10000);});");
@@ -1636,50 +1673,6 @@ function genFull(d,ci){
 
 //  FACTORY STARTUP 
 //  DAILY REPORT 
-async function sendDailyReport(){
-  if(!registry.length||!ownerChatIds.size)return;
-  var lines=[E.chart+' <b>Daily Bot Report</b>\n'];
-  var anyOffline=false;
-  for(var i=0;i<registry.length;i++){
-    var b=registry[i];var ok=false;
-    try{
-      var r=await Promise.race([
-        fetch(b.url+'/health'),
-        new Promise(function(_,rej){setTimeout(function(){rej(new Error('t'));},8000);}),
-      ]);
-      ok=r&&r.ok;
-    }catch(_){}
-    lines.push((i+1)+'. <b>'+b.ticker+'</b> \u2014 '+(ok?E.check+' Online':E.xmark+' Offline'));
-    if(!ok)anyOffline=true;
-  }
-  lines.push('');
-  if(anyOffline){
-    lines.push(E.warn+' <b>Action needed:</b>');
-    lines.push('One or more bots are offline.');
-    lines.push('\u2022 /stats \u2014 see details');
-    lines.push('\u2022 /rebuild \u2014 push fresh code');
-    lines.push('\u2022 Contact support if issue persists');
-  } else {
-    lines.push(E.check+' All bots are running smoothly.');
-  }
-  var msg=lines.join('\n');
-  for(var cid of ownerChatIds){
-    try{await bot.telegram.sendMessage(cid,msg,{parse_mode:'HTML'});}catch(_){}
-  }
-}
-function scheduleDailyReport(){
-  var now=new Date();
-  var next=new Date();
-  next.setUTCHours(9,0,0,0);
-  if(next<=now)next.setUTCDate(next.getUTCDate()+1);
-  var wait=next.getTime()-now.getTime();
-  setTimeout(function(){
-    sendDailyReport();
-    setInterval(sendDailyReport,24*60*60*1000);
-  },wait);
-  console.log('Daily report scheduled in',Math.round(wait/3600000),'hr(s)');
-}
-
 app.post('/webhook',function(req,res){bot.handleUpdate(req.body,res);});
 app.get('/',function(req,res){res.end('OK');});
 app.get('/health',function(req,res){res.end('OK');});
