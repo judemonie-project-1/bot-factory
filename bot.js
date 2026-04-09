@@ -1631,9 +1631,15 @@ function genFull(d,ci){
   ln("    if(!sm||sm==='IGNORE'||sm.split('\\n').length>8)sm=TICKER+' \\u2014 community-owned. Renounced. '+LOCKED+'.\\nNarrative is real. Cap is low. Load up.';");
   ln("    var caLine=caUnlocked?'\\n\\nCA:\\n'+CA:'\\n\\nCA dropping soon.';");
   ln("    await sendImg(ctx.chat.id,sm+caLine,{});");
-  ln("  }catch(e){var sf=[TICKER+' built by community. Renounced. '+LOCKED+'.',TICKER+' is the quiet move. Get in.',TICKER+' \\u2014 community-owned. Real narrative. Load up.'];ctx.reply(sf[Math.floor(Math.random()*sf.length)]+(caUnlocked?'\\n\\nCA:\\n'+CA:''));}");
+  ln("  }catch(e){");
+  ln("    console.log('Shill error:',e.message);");
+  ln("    var sf=[TICKER+' \\\\u2014 community-owned. Renounced. '+LOCKED+'.\\\\nNarrative real. Cap low. Load up.',");
+  ln("      'The quiet move on BSC? '+TICKER+'.\\\\nCommunity-owned. Renounced. '+LOCKED+'. Get in.',");
+  ln("      'Looking for the next gem? '+TICKER+' is it.\\\\nRenounced. '+LOCKED+'. Real community.'];");
+  ln("    var fb=sf[Math.floor(Math.random()*sf.length)]+(caUnlocked?'\\\\n\\\\nCA:\\\\n'+CA:'\\\\n\\\\nCA dropping soon.');");
+  ln("    await sendImg(ctx.chat.id,fb,{});");
+  ln("  }");
   ln("});")
-;
 
   if(STAGE==='prelaunch'){
     ln("bot.command('"+REVEAL+"',async function(ctx){var t=ctx.chat&&ctx.chat.type;if(t==='private'){caUnlocked=true;saveState();return ctx.reply('CA is now REVEALED.');}var a=await isAdmin(ctx,ctx.from.id);if(!a)return;caUnlocked=true;saveState();var m=await ctx.reply('CA is now live.');autoDel(ctx.chat.id,m.message_id,10000);});");
