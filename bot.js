@@ -314,6 +314,7 @@ bot.command('start',function(ctx){
     '/rebuild \u2014 Full rebuild from stored data\n'+
     '/update \u2014 Push latest factory improvements\n'+
     '/stats \u2014 Full status report for all bots\n'+
+    '/cleanup \u2014 Find and delete unused services\n'+
     '/addgroq \u2014 Add AI key\n'+
     '/cancel \u2014 Cancel current operation',
     {parse_mode:'HTML'}
@@ -588,6 +589,119 @@ async function pushAndSave(ctx,b,what){
 }
 
 //  REBUILD / UPDATE 
+//  CLEANUP SYSTEM 
+var cleanupSessions={}; // uid -> {renderOrphans, ghOrphans}
+
+async function getRenderServices(){
+  var all=[];
+  try{
+    var r=await fetch('https://api.render.com/v1/services?limit=100',{headers:{'Authorization':'Bearer '+RENDER_KEY,'Accept':'application/json'}});
+    var d=await r.json();
+    if(Array.isArray(d))all=d.map(function(s){return{id:(s.service||s).id,name:(s.service||s).name,url:'https://'+(s.service||s).name+'.onrender.com'};});
+  }catch(e){console.log('Render list:',e.message);}
+  return all;
+}
+
+async function getGithubRepos(){
+  var all=[];
+  try{
+    var r=await fetch('https://api.github.com/user/repos?per_page=100&sort=updated',{headers:{'Authorization':'token '+GITHUB_TOKEN,'Accept':'application/vnd.github.v3+json'}});
+    var d=await r.json();
+    if(Array.isArray(d))all=d.filter(function(r){return r.name.match(/-bot-[a-z0-9]{4}$/);}).map(function(r){return{name:r.name,full_name:r.full_name};});
+  }catch(e){console.log('GH list:',e.message);}
+  return all;
+}
+
+async function deleteRenderService(svcId){
+  await fetch('https://api.render.com/v1/services/'+svcId,{method:'DELETE',headers:{'Authorization':'Bearer '+RENDER_KEY,'Accept':'application/json'}});
+}
+
+async function deleteGithubRepo(fullName){
+  await fetch('https://api.github.com/repos/'+fullName,{method:'DELETE',headers:{'Authorization':'token '+GITHUB_TOKEN,'Accept':'application/vnd.github.v3+json'}});
+}
+
+bot.command('cleanup',async function(ctx){
+  ownerChatIds.add(ctx.chat.id);
+  var pm=await ctx.reply(E.search+' Scanning all services...');
+  var renderSvcs=await getRenderServices();
+  var ghRepos=await getGithubRepos();
+  // Registry URLs and repo names
+  var regUrls=new Set(registry.map(function(b){return(b.url||'').replace(/\/+$/,'').toLowerCase();}));
+  var regRepos=new Set(registry.map(function(b){return(b.repoName||'').toLowerCase();}));
+  regRepos.add('bot-factory'); // never delete the factory
+  // Find orphans
+  var rOrphans=renderSvcs.filter(function(s){
+    var u=s.url.toLowerCase();
+    return !regUrls.has(u)&&s.name!=='bot-factory'&&s.name.match(/-bot/);
+  });
+  var gOrphans=ghRepos.filter(function(r){
+    return !regRepos.has(r.name.toLowerCase());
+  });
+  try{await ctx.telegram.deleteMessage(ctx.chat.id,pm.message_id);}catch(_){}
+  if(!rOrphans.length&&!gOrphans.length){
+    return ctx.reply(E.check+' Nothing to clean up! All services match your registered bots.');
+  }
+  var uid=String(ctx.from.id);
+  cleanupSessions[uid]={renderOrphans:rOrphans,ghOrphans:gOrphans};
+  var msg=E.warn+' <b>Orphaned services found</b>\n\n';
+  if(rOrphans.length){
+    msg+='<b>Hosting services ('+rOrphans.length+'):</b>\n';
+    rOrphans.forEach(function(s,i){msg+=(i+1)+'. '+s.name+'\n';});
+    msg+='\n';
+  }
+  if(gOrphans.length){
+    msg+='<b>Code repositories ('+gOrphans.length+'):</b>\n';
+    gOrphans.forEach(function(r,i){msg+=(i+1)+'. '+r.name+'\n';});
+    msg+='\n';
+  }
+  msg+='These are NOT in your bot registry.\n<i>Your active bots are safe.</i>';
+  var kb={inline_keyboard:[
+    [{text:E.xmark+' Delete ALL orphans',callback_data:'cln_all_'+uid}],
+    [{text:E.check+' Keep everything',callback_data:'cln_cancel_'+uid}],
+  ]};
+  if(rOrphans.length)kb.inline_keyboard.splice(1,0,[{text:'\u{1F5D1}\uFE0F Delete hosting only',callback_data:'cln_render_'+uid}]);
+  if(gOrphans.length)kb.inline_keyboard.splice(1,0,[{text:'\u{1F5C4}\uFE0F Delete repos only',callback_data:'cln_gh_'+uid}]);
+  return ctx.reply(msg,{parse_mode:'HTML',reply_markup:kb});
+});
+
+async function doCleanup(ctx,uid,renderOnly,ghOnly){
+  var cs=cleanupSessions[uid];if(!cs)return ctx.reply('Session expired.');
+  delete cleanupSessions[uid];
+  try{await ctx.deleteMessage();}catch(_){}
+  var pm=await ctx.reply(E.gear+' Cleaning up...');
+  var deleted=[],failed=[];
+  if(!ghOnly){
+    for(var i=0;i<cs.renderOrphans.length;i++){
+      var s=cs.renderOrphans[i];
+      try{await deleteRenderService(s.id);deleted.push('Hosting: '+s.name);}
+      catch(e){failed.push('Hosting: '+s.name+' ('+e.message.slice(0,40)+')');}
+    }
+  }
+  if(!renderOnly){
+    for(var j=0;j<cs.ghOrphans.length;j++){
+      var r=cs.ghOrphans[j];
+      try{await deleteGithubRepo(r.full_name);deleted.push('Repo: '+r.name);}
+      catch(e){failed.push('Repo: '+r.name+' ('+e.message.slice(0,40)+')');}
+    }
+  }
+  try{await ctx.telegram.deleteMessage(ctx.chat.id,pm.message_id);}catch(_){}
+  var msg='';
+  if(deleted.length)msg+=E.check+' <b>Deleted ('+deleted.length+'):</b>\n'+deleted.map(function(d){return'\u2022 '+d;}).join('\n')+'\n\n';
+  if(failed.length)msg+=E.xmark+' <b>Failed ('+failed.length+'):</b>\n'+failed.map(function(f){return'\u2022 '+f;}).join('\n')+'\n\n';
+  if(!msg)msg='Nothing was deleted.';
+  return ctx.reply(msg.trim(),{parse_mode:'HTML'});
+}
+
+bot.action(/^cln_all_(.+)$/,async function(ctx){await ctx.answerCbQuery();await doCleanup(ctx,ctx.match[1],false,false);});
+bot.action(/^cln_render_(.+)$/,async function(ctx){await ctx.answerCbQuery();await doCleanup(ctx,ctx.match[1],true,false);});
+bot.action(/^cln_gh_(.+)$/,async function(ctx){await ctx.answerCbQuery();await doCleanup(ctx,ctx.match[1],false,true);});
+bot.action(/^cln_cancel_(.+)$/,async function(ctx){
+  await ctx.answerCbQuery();
+  delete cleanupSessions[ctx.match[1]];
+  try{await ctx.deleteMessage();}catch(_){}
+  return ctx.reply(E.check+' Cancelled. Nothing was deleted.');
+});
+
 bot.command('rebuild',async function(ctx){
   var el=registry.filter(function(b){return b.repoName&&b.ghOwner&&b.d&&b.d.ticker;});
   if(!el.length)return ctx.reply(E.wrench+' No bots with data. Use /addbot first.');
@@ -1170,57 +1284,79 @@ function genGuard(d,ci){
 
 //  FACTORY STARTUP 
 //  DAILY REPORT 
-// Track bot uptime
-var botUptimeTracker={}; // url -> {firstSeen, lastOnline, wasOffline}
+// Track bot uptime  persisted to file
+var _UPTIME_FILE='/tmp/uptime.json';
+var botUptimeTracker={};
+function loadUptime(){
+  try{botUptimeTracker=JSON.parse(require('fs').readFileSync(_UPTIME_FILE,'utf8'));}catch(_){}
+}
+function saveUptime(){
+  try{require('fs').writeFileSync(_UPTIME_FILE,JSON.stringify(botUptimeTracker));}catch(_){}
+}
+loadUptime();
 
 async function sendDailyReport(){
   if(!registry.length||!ownerChatIds.size)return;
   var now=Date.now();
+  var d=new Date(now);
+  var timeStr=d.getUTCHours().toString().padStart(2,'0')+':'+d.getUTCMinutes().toString().padStart(2,'0')+' UTC ('+
+    ((d.getUTCHours()+1)%24).toString().padStart(2,'0')+':'+d.getUTCMinutes().toString().padStart(2,'0')+' WAT)';
   var lines=[];
-  lines.push(E.chart+' <b>Bot Status Report</b>');
-  lines.push('<i>'+new Date().toUTCString().replace('GMT','UTC')+'</i>');
+  lines.push(E.chart+' <b>Bot Status</b> \u2014 '+timeStr);
   lines.push('');
   var anyOffline=false;
   for(var i=0;i<registry.length;i++){
-    var b=registry[i];var ok=false;
+    var b=registry[i];
+    var ok=false,ping=-1;
     var t=botUptimeTracker[b.url]||{firstSeen:now,lastOnline:null,downSince:null};
     botUptimeTracker[b.url]=t;
+    if(!t.firstSeen)t.firstSeen=now;
     try{
-      var r=await Promise.race([fetch(b.url+'/health'),new Promise(function(_,rej){setTimeout(function(){rej(new Error('t'));},8000);})]);
+      var t0=Date.now();
+      var r=await Promise.race([
+        fetch(b.url+'/health'),
+        new Promise(function(_,rej){setTimeout(function(){rej(new Error('timeout'));},8000);})
+      ]);
       ok=r&&r.ok;
+      ping=ok?Date.now()-t0:-1;
     }catch(_){}
-    if(ok){t.lastOnline=now;t.downSince=null;}
+    if(ok){t.lastOnline=now;if(t.downSince)t.downSince=null;}
     else{if(!t.downSince)t.downSince=now;anyOffline=true;}
+    // uptime string
     var upStr='';
-    if(ok&&t.lastOnline){
+    if(ok&&t.firstSeen){
       var upMs=now-t.firstSeen;
       var upH=Math.floor(upMs/3600000);
       var upD=Math.floor(upH/24);
-      upStr=upD>0?' \u2014 up '+upD+'d '+(upH%24)+'h':' \u2014 up '+upH+'h';
+      upStr=upD>0?' \u2022 up '+upD+'d '+(upH%24)+'h':' \u2022 up '+upH+'h';
     }
     var downStr='';
     if(!ok&&t.downSince){
       var downMs=now-t.downSince;
       var downM=Math.round(downMs/60000);
-      downStr=' \u2014 down '+downM+'m';
+      downStr=' \u2022 down '+downM+'m';
     }
-    lines.push((i+1)+'. <b>'+b.ticker+'</b> ('+(b.chain||'bsc').toUpperCase()+') '+(ok?E.check+' Online':E.xmark+' Offline')+(ok?upStr:downStr));
-    lines.push('   Mode: '+(b.mode==='guard'?E.shield+' Guard':E.robot+' Full')+' \u2022 Status: '+(b.d&&b.d.status==='cto'?'CTO':'Active dev'));
+    var pingStr=ping>0?' \u2022 '+ping+'ms':'';
+    var d2=b.d||{};
+    lines.push((i+1)+'. <b>'+b.ticker+'</b> ('+(b.chain||'bsc').toUpperCase()+')');
+    lines.push('   '+(ok?E.check+' Online':E.xmark+' Offline')+upStr+downStr+pingStr);
+    lines.push('   Mode: '+(b.mode==='guard'?E.shield+' Guard':E.robot+' Full')+' \u2022 '+(d2.status==='cto'?'\u{1F91D} CTO':E.rocket+' Active dev'));
+    lines.push('   Stage: '+({'live':'\u{1F7E2} Live','prelaunch':'\u{1F7E1} Pre-launch','noCA':'\u26AA No CA yet'}[d2.stage||'live']||'Live'));
     lines.push('');
   }
+  saveUptime();
   if(anyOffline){
     lines.push(E.warn+' <b>Action needed:</b>');
-    lines.push('\u2022 /stats \u2014 check details');
     lines.push('\u2022 /rebuild \u2014 push fresh code');
     lines.push('\u2022 Contact support if persists');
-  } else {
-    lines.push(E.check+' All bots are running smoothly.');
+  }else{
+    lines.push(E.check+' All bots running smoothly.');
   }
   var msg=lines.join('\n');
   for(var cid of ownerChatIds){
     try{await bot.telegram.sendMessage(cid,msg,{parse_mode:'HTML',disable_web_page_preview:true});}catch(_){}
   }
-  console.log('Report sent to',ownerChatIds.size,'owner(s)');
+  console.log('Stats sent:',registry.length,'bots,',ownerChatIds.size,'owner(s)');
 }
 
 function scheduleDailyReport(){
@@ -1537,6 +1673,7 @@ app.listen(PORT,async function(){
   }catch(e){console.log('Commands:',e.message);}
   setInterval(function(){if(WEBHOOK_URL)try{fetch(WEBHOOK_URL+'/health').catch(function(){});}catch(_){}},4*60*1000);
   try{scheduleDailyReport();}catch(e){console.log('Daily report:',e.message);}
+  try{loadUptime();}catch(_){}
   console.log('Bot Factory is live.');
 });
 app.post('/webhook',function(req,res){bot.handleUpdate(req.body,res);});
