@@ -234,9 +234,9 @@ function nextStep(s){
   var skipSteps=(d.stage==='noCA')?['ca','tax','maxwallet','lp']:[];
   var flow=[];
   if(d.mode==='full')
-    flow=['chain','mode','status','stage','pers','rmode','sil','ca','twitter','tax','maxwallet','lp','narrative','img','bottoken'];
+    flow=['chain','mode','status','stage','pers','rmode','sil','ca','twitter','tg','tax','maxwallet','lp','narrative','img','bottoken'];
   else
-    flow=['chain','mode','gt','status','stage','sil','ca','twitter','tax','maxwallet','lp','narrative','img','bottoken'];
+    flow=['chain','mode','gt','status','stage','sil','ca','twitter','tg','tax','maxwallet','lp','narrative','img','bottoken'];
   if(isAdd&&!d.renderUrl)flow.push('renderurl');
   flow.push('confirm');
   if(skipSteps.length)flow=flow.filter(function(f){return!skipSteps.includes(f);});
@@ -280,6 +280,7 @@ function buildSummary(s){
     '<b>Contract:</b> '+d.renounced+'\n'+
     '<b>LP:</b> '+d.locked+'\n'+
     (d.twitter?'<b>Twitter:</b> '+d.twitter+'\n':'')+
+    (d.tg?'<b>TG Group:</b> '+d.tg+'\n':'')+
     '<b>Image:</b> '+(s.imgBuf?E.check+' ready':'\u2014 none')+'\n'+
     (s.isAdd&&d.renderUrl?'<b>Bot URL:</b> '+d.renderUrl+'\n':'')+
     '\nType <b>yes</b> to '+(s.isAdd?'register':'deploy')+' \u2014 <b>no</b> to cancel.';
@@ -292,36 +293,34 @@ bot.command('start',function(ctx){
     E.rocket+' <b>Bot Factory</b>\n'+
     '<i>The fastest way to launch a Telegram community bot for your token.</i>\n\n'+
 
-    E.gear+' <b>What happens when you build:</b>\n'+
-    '\u2022 Token data auto-fetched from BSCScan + DexScreener\n'+
-    '\u2022 Bot code generated with your exact details\n'+
-    '\u2022 Repository created and code pushed\n'+
-    '\u2022 Bot deployed and running automatically\n'+
-    '\u2022 Always-on keepalive configured\n'+
-    '\u2022 <b>Bot live in ~3 minutes. Zero manual setup.</b>\n\n'+
+    E.shield+' <b>Two bot types</b>\n'+
+    '\u2022 <b>Full</b> \u2014 AI replies, moderation, silence breaker, admin shoutouts, /shill\n'+
+    '\u2022 <b>Guard</b> \u2014 moderation only, no AI, hardcoded replies\n\n'+
 
-    E.shield+' <b>Two bot types:</b>\n'+
-    '\u2022 <b>Full</b> \u2014 AI-powered replies, moderation, silence breaker, admin shoutouts\n'+
-    '\u2022 <b>Guard</b> \u2014 moderation + hardcoded replies, no AI\n\n'+
+    E.star+' <b>What happens when you /build</b>\n'+
+    '\u2022 Token data fetched automatically\n'+
+    '\u2022 Bot code generated with your details\n'+
+    '\u2022 Deployed and live in ~3 minutes\n'+
+    '\u2022 Registered automatically \u2014 no extra steps\n'+
+    '\u2022 Status reports at 10am and 10pm WAT daily\n\n'+
 
-    E.star+' <b>After building:</b>\n'+
-    '\u2022 /edit \u2014 change any detail, pushes instantly\n'+
-    '\u2022 /rebuild \u2014 full refresh with stored data\n'+
-    '\u2022 /update \u2014 push latest factory improvements\n'+
-    '\u2022 Daily report sent every morning automatically\n\n'+
+    '<b>\u2500 Build \u2500</b>\n'+
+    '/build \u2014 Build a new bot from scratch\n'+
+    '/addbot \u2014 Register a bot already running elsewhere\n\n'+
 
-    '<b>Commands</b>\n'+
-    '/build \u2014 Build a new bot\n'+
-    '/addbot \u2014 Register existing bot\n'+
-    '/bots \u2014 List your bots\n'+
-    '/edit \u2014 Edit a bot\n'+
-    '/rebuild \u2014 Full rebuild from stored data\n'+
-    '/fixgroq \u2014 Push AI keys to all bots\n'+
-    '/update \u2014 Push latest factory improvements\n'+
-    '/stats \u2014 Full status report for all bots\n'+
-    '/cleanup \u2014 Find and delete unused services\n'+
-    '/addgroq \u2014 Add AI key\n'+
-    '/cancel \u2014 Cancel current operation',
+    '<b>\u2500 Manage \u2500</b>\n'+
+    '/bots \u2014 See all your bots\n'+
+    '/edit \u2014 Change CA, stage, LP, tax, image, TG link etc\n'+
+    '/rebuild \u2014 Regenerate and redeploy a bot\n'+
+    '/update \u2014 Push latest improvements to all bots\n\n'+
+
+    '<b>\u2500 Monitor \u2500</b>\n'+
+    '/stats \u2014 Live status, uptime and response time for all bots\n'+
+    '/cleanup \u2014 Delete unused services and repos\n\n'+
+
+    '<b>\u2500 Settings \u2500</b>\n'+
+    '/addgroq \u2014 Add AI key (auto-pushes to all bots)\n'+
+    '/cancel \u2014 Cancel any active operation',
     {parse_mode:'HTML'}
   );
 });
@@ -699,21 +698,31 @@ async function getCronJobs(){
   var all=[];
   try{
     var r=await fetch('https://api.cron-job.org/jobs',{
-      headers:{'Authorization':'Bearer '+CRON_KEY,'Content-Type':'application/json'}
+      headers:{'Authorization':'Bearer '+CRON_KEY,'Accept':'application/json','Content-Type':'application/json'}
     });
-    var d=await r.json();
-    if(d.jobs&&Array.isArray(d.jobs)){
-      all=d.jobs.map(function(j){return{id:j.jobId,title:j.title,url:j.url};});
-    }
-  }catch(e){console.log('Cron list:',e.message);}
+    if(!r.ok){console.log('Cron list HTTP:',r.status);return all;}
+    var txt=await r.text();
+    var d=JSON.parse(txt);
+    // API returns {jobs:[...]} or array directly
+    var jobs=Array.isArray(d)?d:(d.jobs||[]);
+    all=jobs.map(function(j){
+      // API may use jobId or identifier
+      var id=j.jobId||j.identifier||j.id;
+      var url=(j.url&&j.url.url)||j.url||'';
+      return{id:id,title:j.title||('Job '+id),url:url};
+    }).filter(function(j){return j.id;});
+    console.log('Cron jobs found:',all.length);
+  }catch(e){console.log('Cron list error:',e.message);}
   return all;
 }
 
 async function deleteCronJob(jobId){
-  await fetch('https://api.cron-job.org/jobs/'+jobId,{
+  var r=await fetch('https://api.cron-job.org/jobs/'+jobId,{
     method:'DELETE',
-    headers:{'Authorization':'Bearer '+CRON_KEY,'Content-Type':'application/json'}
+    headers:{'Authorization':'Bearer '+CRON_KEY,'Accept':'application/json','Content-Type':'application/json'}
   });
+  console.log('Delete cron',jobId,':',r.status);
+  return r.ok||r.status===204||r.status===200;
 }
 
 async function doCleanup(ctx,uid,renderOnly,ghOnly){
@@ -885,8 +894,25 @@ bot.on('text',async function(ctx){
   if(groqSessions[uid]){
     delete groqSessions[uid];try{await ctx.deleteMessage();}catch(_){}
     if(text.length<20)return ctx.reply(E.xmark+' Invalid key. Try /addgroq again.');
-    groqPool.push(text.trim());
-    return ctx.reply(E.check+' AI key added! Pool: '+groqPool.length+' key(s).');
+    var newKey=text.trim();
+    if(!groqPool.includes(newKey))groqPool.push(newKey);
+    await ctx.reply(E.check+' AI key added! Pool: '+groqPool.length+' key(s).\n'+E.gear+' Pushing to all bots...');
+    // Auto-push all keys to every bot that has a svcId
+    var pushed=0,failed=0;
+    for(var _bi=0;_bi<registry.length;_bi++){
+      var _b=registry[_bi];
+      if(!_b.svcId||_b.mode!=='full')continue;
+      try{
+        var _ev=[{key:'GROQ_API_KEY',value:groqPool[0]}];
+        groqPool.forEach(function(k,i){_ev.push({key:'GROQ_KEY_'+(i+1),value:k});});
+        await renderEnv(_b.svcId,_ev);
+        pushed++;
+      }catch(_){failed++;}
+    }
+    var summary=pushed?E.check+' Pushed to '+pushed+' bot(s).':'';
+    var failNote=failed?' '+failed+' skipped (no service ID).':'';
+    var skipNote=(registry.filter(function(b){return b.mode==='full'&&!b.svcId;}).length)?' Use /rebuild for bots without service ID.':'';
+    return ctx.reply(summary+(failNote||skipNote||' All bots updated!'));
   }
 
   // Edit text fields
@@ -1072,6 +1098,9 @@ async function doBuild(ctx,s,uid){
     saveRegistry();delete sessions[uid];
     await ctx.reply(
       E.party+' <b>'+d.ticker+' is live!</b>\n\n'+
+      E.check+' Bot is registered and ready.\n'+
+      E.check+' Added to /bots automatically.\n'+
+      E.check+' Daily status reports active.\n\n'+
       E.link+' Bot URL:\n<code>'+actualUrl+'</code>\n\n'+
       
       E.warn+' <b>Secret commands \u2014 save these:</b>\n'+
@@ -1184,6 +1213,7 @@ function genGuard(d,ci){
   var BUYTAX=d.buyTax||'0';
   var SELLTAX=d.sellTax||'0';
   var TWITTER=d.twitter||'';
+  var TG=d.tg||'';
   var WEBSITE=d.website||'';
   var RENOUNCED=d.renounced||'NOT RENOUNCED';
   var LOCKED=d.locked||'NOT LOCKED';
@@ -1209,6 +1239,7 @@ function genGuard(d,ci){
   ln("var TICKER='"+TICKER+"';");
   ln("var CA='"+CA+"';");
   ln("var TWITTER='"+TWITTER+"';");
+  ln("var TG='"+TG+"';");
   ln("var WEBSITE='"+WEBSITE+"';");
   ln("var IS_CTO="+IS_CTO+";");
   ln("var GUARD_TYPE='"+GT+"';");
@@ -1391,10 +1422,13 @@ async function sendDailyReport(targetChatId){
   if(!targets.length)return;
   var now=Date.now();
   var d=new Date(now);
-  var timeStr=d.getUTCHours().toString().padStart(2,'0')+':'+d.getUTCMinutes().toString().padStart(2,'0')+' UTC ('+
-    ((d.getUTCHours()+1)%24).toString().padStart(2,'0')+':'+d.getUTCMinutes().toString().padStart(2,'0')+' WAT)';
+  var utcH=d.getUTCHours().toString().padStart(2,'0');
+  var utcM=d.getUTCMinutes().toString().padStart(2,'0');
+  var watH=((d.getUTCHours()+1)%24).toString().padStart(2,'0');
+  var timeStr=utcH+':'+utcM+' UTC / '+watH+':'+utcM+' WAT';
   var lines=[];
-  lines.push(E.chart+' <b>Bot Status</b> \u2014 '+timeStr);
+  lines.push(E.chart+' <b>Bot Status Report</b>');
+  lines.push('<i>'+timeStr+'</i>');
   lines.push('');
   var anyOffline=false;
   for(var i=0;i<registry.length;i++){
@@ -1414,35 +1448,39 @@ async function sendDailyReport(targetChatId){
     }catch(_){}
     if(ok){t.lastOnline=now;if(t.downSince)t.downSince=null;}
     else{if(!t.downSince)t.downSince=now;anyOffline=true;}
-    // uptime string
+    var statusIcon=ok?'\u2705':'\u274C';
+    var statusWord=ok?'Online':'Offline';
+    // uptime
     var upStr='';
     if(ok&&t.firstSeen){
       var upMs=now-t.firstSeen;
       var upH=Math.floor(upMs/3600000);
       var upD=Math.floor(upH/24);
-      upStr=upD>0?' \u2022 up '+upD+'d '+(upH%24)+'h':' \u2022 up '+upH+'h';
+      if(upD>0)upStr=upD+'d '+(upH%24)+'h';
+      else if(upH>0)upStr=upH+'h '+(Math.floor((upMs%3600000)/60000))+'m';
+      else upStr=Math.floor(upMs/60000)+'m';
     }
+    // down time
     var downStr='';
     if(!ok&&t.downSince){
       var downMs=now-t.downSince;
       var downM=Math.round(downMs/60000);
-      downStr=' \u2022 down '+downM+'m';
+      downStr='down '+downM+'m';
     }
-    var pingStr=ping>0?' \u2022 '+ping+'ms':'';
     var d2=b.d||{};
-    lines.push((i+1)+'. <b>'+b.ticker+'</b> ('+(b.chain||'bsc').toUpperCase()+')');
-    lines.push('   '+(ok?E.check+' Online':E.xmark+' Offline')+upStr+downStr+pingStr);
-    lines.push('   Mode: '+(b.mode==='guard'?E.shield+' Guard':E.robot+' Full')+' \u2022 '+(d2.status==='cto'?'\u{1F91D} CTO':E.rocket+' Active dev'));
-    lines.push('   Stage: '+({'live':'\u{1F7E2} Live','prelaunch':'\u{1F7E1} Pre-launch','noCA':'\u26AA No CA yet'}[d2.stage||'live']||'Live'));
+    var modeStr=b.mode==='guard'?'Guard':'Full AI';
+    var stageStr={'live':'Live','prelaunch':'Pre-launch','noCA':'No CA yet'}[d2.stage||'live']||'Live';
+    lines.push((i+1)+'. <b>'+b.ticker+'</b>');
+    lines.push('   '+statusIcon+' '+statusWord+(upStr?' \u2022 Uptime: '+upStr:'')+(downStr?' \u2022 '+downStr:'')+(ping>0?' \u2022 Response: '+ping+'ms':''));
+    lines.push('   '+modeStr+' \u2022 '+(d2.status==='cto'?'CTO':'Active dev')+' \u2022 '+stageStr);
     lines.push('');
   }
   saveUptime();
   if(anyOffline){
     lines.push(E.warn+' <b>Action needed:</b>');
-    lines.push('\u2022 /rebuild \u2014 push fresh code');
-    lines.push('\u2022 Contact support if persists');
+    lines.push('Use /rebuild to push fresh code to offline bots.');
   }else{
-    lines.push(E.check+' All bots running smoothly.');
+    lines.push(E.check+' All bots are online and running.');
   }
   var msg=lines.join('\n');
   for(var ci2=0;ci2<targets.length;ci2++){
@@ -1478,6 +1516,7 @@ function genFull(d,ci){
   var BUYTAX=d.buyTax||'0';
   var SELLTAX=d.sellTax||'0';
   var TWITTER=d.twitter||'';
+  var TG=d.tg||'';
   var WEBSITE=d.website||'';
   var RENOUNCED=d.renounced||'NOT RENOUNCED';
   var LOCKED=d.locked||'NOT LOCKED';
@@ -1519,6 +1558,7 @@ function genFull(d,ci){
   ln("var TICKER='"+TICKER+"';");
   ln("var CA='"+CA+"';");
   ln("var TWITTER='"+TWITTER+"';");
+  ln("var TG='"+TG+"';");
   ln("var WEBSITE='"+WEBSITE+"';");
   ln("var IS_CTO="+IS_CTO+";");
   ln("var RESPONSE_MODE='"+RMODE+"';");
@@ -1634,11 +1674,12 @@ function genFull(d,ci){
   ln("  ];");
   ln("  var base=shillMsgs[Math.floor(Math.random()*shillMsgs.length)];");
   ln("  var caLine=caUnlocked?'\\n\\nCA:\\n'+CA:'\\n\\nCA dropping soon.';");
+  ln("  var tgLine=TG?'\\\\n\\\\n\\\\u{1F4AC} Join: '+TG:'';");
   ln("  try{");
   ln("    var aiShill=await smartAsk('Rewrite this shill naturally in 3-4 lines, keep the facts, sound like a real person not a bot: '+base);");
   ln("    if(aiShill&&aiShill!=='IGNORE'&&aiShill.length>10&&aiShill.split('\\n').length<=6)base=aiShill;");
   ln("  }catch(_){}"); 
-  ln("  await sendImg(ctx.chat.id,base+caLine,{});");
+  ln("  await sendImg(ctx.chat.id,base+caLine+tgLine,{});");
   ln("});");
 ;
 
