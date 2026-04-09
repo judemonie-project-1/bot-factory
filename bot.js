@@ -362,7 +362,7 @@ bot.command('stats',async function(ctx){
   ownerChatIds.add(ctx.chat.id);
   if(!registry.length)return ctx.reply(E.chart+' No bots registered. Use /build or /addbot.');
   await ctx.reply(E.chart+' Checking all bots...');
-  await sendDailyReport();
+  await sendDailyReport(ctx.chat.id);
 });;
 
 
@@ -646,12 +646,14 @@ bot.command('cleanup',async function(ctx){
   var cronJobs=await getCronJobs();
   var regNames=new Set(registry.map(function(b){return(b.repoName||'').toLowerCase();}));
   var cOrphans=cronJobs.filter(function(j){
-    // Match by URL  if the job URL contains a service not in registry
-    var matched=registry.some(function(b){
-      return b.url&&j.url&&j.url.includes(b.url.replace('https://',''));
+    if(!j.url||!j.url.includes('.onrender.com'))return false;
+    var jHost=(j.url.match(/https?:\/\/([a-z0-9-]+)\.onrender\.com/)||[])[1]||'';
+    if(!jHost||jHost.includes('factory'))return false;
+    return !registry.some(function(b){
+      var bHost=(b.url||'').replace('https://','').split('.')[0];
+      return bHost&&bHost===jHost;
     });
-    return !matched&&j.url&&j.url.includes('.onrender.com');
-  });
+  })
   cleanupSessions[uid]={renderOrphans:rOrphans,ghOrphans:gOrphans,cronOrphans:cOrphans};
   var msg=E.warn+' <b>Orphaned services found</b>\n\n';
   if(rOrphans.length){
@@ -1339,8 +1341,10 @@ function saveUptime(){
 }
 loadUptime();
 
-async function sendDailyReport(){
-  if(!registry.length||!ownerChatIds.size)return;
+async function sendDailyReport(targetChatId){
+  if(!registry.length)return;
+  var targets=targetChatId?[targetChatId]:Array.from(ownerChatIds);
+  if(!targets.length)return;
   var now=Date.now();
   var d=new Date(now);
   var timeStr=d.getUTCHours().toString().padStart(2,'0')+':'+d.getUTCMinutes().toString().padStart(2,'0')+' UTC ('+
@@ -1397,10 +1401,10 @@ async function sendDailyReport(){
     lines.push(E.check+' All bots running smoothly.');
   }
   var msg=lines.join('\n');
-  for(var cid of ownerChatIds){
-    try{await bot.telegram.sendMessage(cid,msg,{parse_mode:'HTML',disable_web_page_preview:true});}catch(_){}
+  for(var ci2=0;ci2<targets.length;ci2++){
+    try{await bot.telegram.sendMessage(targets[ci2],msg,{parse_mode:'HTML',disable_web_page_preview:true});}catch(_){}
   }
-  console.log('Stats sent:',registry.length,'bots,',ownerChatIds.size,'owner(s)');
+  console.log('Stats sent to',targets.length,'chat(s)');
 }
 
 function scheduleDailyReport(){
