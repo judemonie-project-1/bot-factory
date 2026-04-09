@@ -1610,7 +1610,7 @@ function genFull(d,ci){
   ln("    if(!sm||sm==='IGNORE'||sm.split('\\n').length>8)sm=TICKER+' \\u2014 community-owned. Renounced. '+LOCKED+'.\\nNarrative is real. Cap is low. Load up.';");
   ln("    var caLine=caUnlocked?'\\n\\nCA:\\n'+CA:'\\n\\nCA dropping soon.';");
   ln("    await sendImg(ctx.chat.id,sm+caLine,{});");
-  ln("  }catch(e){ctx.reply(TICKER+' is the move. Load up.');}");
+  ln("  }catch(e){var sf=[TICKER+' built by community. Renounced. '+LOCKED+'.',TICKER+' is the quiet move. Get in.',TICKER+' \\u2014 community-owned. Real narrative. Load up.'];ctx.reply(sf[Math.floor(Math.random()*sf.length)]+(caUnlocked?'\\n\\nCA:\\n'+CA:''));}");
   ln("});")
 ;
 
