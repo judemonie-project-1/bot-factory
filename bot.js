@@ -505,7 +505,8 @@ bot.action(/^epk_(\d+)$/,async function(ctx){
     [{text:'Renounced: '+(d.renounced||'NOT RENOUNCED'),callback_data:'ef_ren_'+i}],
     [{text:'LP: '+(d.locked||'NOT LOCKED')+' \u2014 tap to change',callback_data:'ef_lp_'+i}],
     [{text:'Bot image',callback_data:'ef_image_'+i}],
-    [{text:(d.status==='cto'?E.rocket+' Switch to Launch':E.shield+' Switch to CTO'),callback_data:'ef_cto_'+i}],
+    [{text:'\u{1F7E2} Stage: '+({'live':'\u{1F7E2} Live','prelaunch':'\u{1F7E1} Pre-launch','noCA':'\u26AA No CA yet'}[(b.d&&b.d.stage)||'live']||'Live')+' (tap to change)',callback_data:'ef_stage_'+i}],
+        [{text:(d.status==='cto'?E.rocket+' Switch to Launch':E.shield+' Switch to CTO'),callback_data:'ef_cto_'+i}],
     [{text:E.xmark+' Cancel',callback_data:'ecancel'}],
   ]}});
 });
@@ -1487,8 +1488,8 @@ function genFull(d,ci){
   ln("var path=require('path');");
   ln("var BOT_TOKEN=process.env.BOT_TOKEN;");
   ln("var _groqPool=[];");
-  ln("for(var _gi=1;_gi<=10;_gi++){var _gk=process.env['GROQ_KEY_'+_gi];if(_gk)_groqPool.push(_gk.trim());}");
-  ln("if(process.env.GROQ_API_KEY&&_groqPool.indexOf(process.env.GROQ_API_KEY.trim())===-1)_groqPool.unshift(process.env.GROQ_API_KEY.trim());");
+  ln("if(process.env.GROQ_API_KEY)_groqPool.push(process.env.GROQ_API_KEY.trim());");
+  ln("for(var _gi=1;_gi<=10;_gi++){var _gk=process.env['GROQ_KEY_'+_gi];if(_gk&&_groqPool.indexOf(_gk.trim())===-1)_groqPool.push(_gk.trim());}"); 
   ln("var _groqIdx=0;");
   ln("function nextGroqKey(){if(!_groqPool.length)return'';var k=_groqPool[_groqIdx%_groqPool.length];_groqIdx++;return k;}");
 
@@ -1541,7 +1542,8 @@ function genFull(d,ci){
   ln("}");
 
   ln("async function ask(msg){");
-  ln("  var lastErr,attempts=Math.max(1,_groqPool.length);");
+  ln("  if(!_groqPool.length)throw new Error('No AI key configured. Add one with /addgroq in factory.');");  
+  ln("  var lastErr,attempts=_groqPool.length;");
   ln("  for(var _ai=0;_ai<attempts;_ai++){");
   ln("    try{");
   ln("      var _gc=new Groq({apiKey:nextGroqKey()});");
