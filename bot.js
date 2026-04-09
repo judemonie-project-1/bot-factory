@@ -316,6 +316,7 @@ bot.command('start',function(ctx){
     '/bots \u2014 List your bots\n'+
     '/edit \u2014 Edit a bot\n'+
     '/rebuild \u2014 Full rebuild from stored data\n'+
+    '/fixgroq \u2014 Push AI keys to all bots\n'+
     '/update \u2014 Push latest factory improvements\n'+
     '/stats \u2014 Full status report for all bots\n'+
     '/cleanup \u2014 Find and delete unused services\n'+
@@ -761,6 +762,24 @@ bot.action(/^cln_cancel_(.+)$/,async function(ctx){
   return ctx.reply(E.check+' Cancelled. Nothing was deleted.');
 });
 
+bot.command('fixgroq',async function(ctx){
+  if(!groqPool.length)return ctx.reply(E.xmark+' No AI keys in pool. Use /addgroq first.');
+  var eligible=registry.filter(function(b){return b.svcId&&b.mode==='full';});
+  if(!eligible.length)return ctx.reply(E.xmark+' No bots with service IDs found. Try /rebuild instead.');
+  await ctx.reply(E.gear+' Updating AI keys on '+eligible.length+' bot(s)...');
+  var results=[];
+  for(var i=0;i<eligible.length;i++){
+    var b=eligible[i];
+    try{
+      var ev=[{key:'GROQ_API_KEY',value:groqPool[0]}];
+      groqPool.forEach(function(k,idx){ev.push({key:'GROQ_KEY_'+(idx+1),value:k});});
+      await renderEnv(b.svcId,ev);
+      results.push(E.check+' <b>'+b.ticker+'</b>');
+    }catch(e){results.push(E.xmark+' <b>'+b.ticker+'</b>: '+e.message.slice(0,50));}
+  }
+  return ctx.reply(results.join('\n')+'\n\nAI keys updated. Bots restart in ~1 min.',{parse_mode:'HTML'});
+});
+
 bot.command('rebuild',async function(ctx){
   var el=registry.filter(function(b){return b.repoName&&b.ghOwner&&b.d&&b.d.ticker;});
   if(!el.length)return ctx.reply(E.wrench+' No bots with data. Use /addbot first.');
@@ -778,9 +797,11 @@ bot.action(/^rbd_(\d+)$/,async function(ctx){
     // Update all Groq keys on the service
     if(b.svcId&&b.mode==='full'&&groqPool.length){
       try{
-        var envUpdate=groqPool.map(function(k,i){return{key:'GROQ_KEY_'+(i+1),value:k};});
+        var envUpdate=[{key:'GROQ_API_KEY',value:groqPool[0]}];
+        groqPool.forEach(function(k,i){envUpdate.push({key:'GROQ_KEY_'+(i+1),value:k});});
         await renderEnv(b.svcId,envUpdate);
-      }catch(_){}
+        console.log('Groq keys updated on',b.ticker);
+      }catch(e){console.log('Env update:',e.message);}
     }
     // Try to also rename image from siren.jpg to ticker name if needed
     try{
