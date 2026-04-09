@@ -164,7 +164,7 @@ async function loadRegistry(){
 function newSession(isAdd){
   return{isAdd:!!isAdd,step:'chain',lastMsgId:null,
     d:{chain:'bsc',mode:'full',status:'launch',guardType:'standard',
-       personality:'alpha',responseMode:'focused',silenceBreaker:'3600000',
+       personality:'alpha',responseMode:'focused',silenceBreaker:'3600000',stage:'live',
        name:'',ticker:'',ca:'',twitter:'',narrative:'',
        supply:'N/A',buyTax:'5',sellTax:'5',
        maxWalletPct:'',maxWalletTokens:'',
@@ -191,6 +191,12 @@ function rmodeBtns(uid){return{inline_keyboard:[
 function mwBtns(uid){return{inline_keyboard:[[{text:'No limit (skip)',callback_data:'w_mw_skip_'+uid},{text:'Has limit \u2014 enter %',callback_data:'w_mw_enter_'+uid}]]};}
 function lpBtns(uid){return{inline_keyboard:[[{text:'\u2705 Yes \u2014 LP is locked',callback_data:'w_lp_yes_'+uid},{text:'\u274C No \u2014 not locked',callback_data:'w_lp_no_'+uid}]]};}
 function skipBtn(uid,step){return{inline_keyboard:[[{text:'Skip',callback_data:'w_skip_'+step+'_'+uid}]]};}
+function stageBtns(uid){return{inline_keyboard:[
+  [{text:'\u{1F7E2} Already live \u2014 CA is public, token is trading',callback_data:'w_stage_live_'+uid}],
+  [{text:'\u{1F7E1} About to launch \u2014 CA ready, not dropped yet',callback_data:'w_stage_prelaunch_'+uid}],
+  [{text:'\u26AA Pre-launch \u2014 no CA yet, just need group management',callback_data:'w_stage_noCA_'+uid}],
+]};}
+
 function silBtns(uid){return{inline_keyboard:[
   [{text:'\u{1F507} Off \u2014 never auto-post',callback_data:'w_sil_0_'+uid}],
   [{text:'\u23F1 10 minutes \u2014 very active',callback_data:'w_sil_600000_'+uid}],
@@ -220,13 +226,16 @@ async function say(ctx,s,text,kb){
 
 function nextStep(s){
   var step=s.step,d=s.d,isAdd=s.isAdd;
+  // noCA stage: skip CA data steps, go straight to narrative
+  var skipSteps=(d.stage==='noCA')?['ca','tax','maxwallet','lp']:[];
   var flow=[];
   if(d.mode==='full')
-    flow=['chain','mode','status','pers','rmode','sil','ca','twitter','tax','maxwallet','lp','narrative','img','bottoken'];
+    flow=['chain','mode','status','stage','pers','rmode','sil','ca','twitter','tax','maxwallet','lp','narrative','img','bottoken'];
   else
-    flow=['chain','mode','gt','status','sil','ca','twitter','tax','maxwallet','lp','narrative','img','bottoken'];
+    flow=['chain','mode','gt','status','stage','sil','ca','twitter','tax','maxwallet','lp','narrative','img','bottoken'];
   if(isAdd&&!d.renderUrl)flow.push('renderurl');
   flow.push('confirm');
+  if(skipSteps.length)flow=flow.filter(function(f){return!skipSteps.includes(f);});
   var idx=flow.indexOf(step);
   return idx>=0&&idx+1<flow.length?flow[idx+1]:'confirm';
 }
@@ -257,6 +266,7 @@ function buildSummary(s){
     '<b>Chain:</b> '+ci.label+'\n'+
     '<b>Mode:</b> '+(d.mode==='guard'?E.shield+' Guard':E.robot+' Full')+'\n'+
     '<b>Status:</b> '+(d.status==='cto'?'\u{1F91D} CTO':E.rocket+' Active dev')+'\n'+
+    '<b>Stage:</b> '+(d.stage==='live'?'\u{1F7E2} Already live':(d.stage==='prelaunch'?'\u{1F7E1} About to launch':'\u26AA Pre-launch (no CA yet)'))+'\n'+
     (d.mode==='full'?'<b>Personality:</b> '+(PERS_LABELS[d.personality]||d.personality)+'\n':'')+
     '<b>Token:</b> '+d.name+' '+d.ticker+'\n'+
     '<b>CA:</b> <code>'+d.ca+'</code>\n'+
@@ -303,7 +313,7 @@ bot.command('start',function(ctx){
     '/edit \u2014 Edit a bot\n'+
     '/rebuild \u2014 Full rebuild from stored data\n'+
     '/update \u2014 Push latest factory improvements\n'+
-    '/stats \u2014 Health check all bots\n'+
+    '/stats \u2014 Full status report for all bots\n'+
     '/addgroq \u2014 Add AI key\n'+
     '/cancel \u2014 Cancel current operation',
     {parse_mode:'HTML'}
@@ -347,17 +357,12 @@ bot.command('bots',function(ctx){ownerChatIds.add(ctx.chat.id);
   return ctx.reply(msg,{parse_mode:'HTML',disable_web_page_preview:true});
 });
 
-bot.command('stats',async function(ctx){ownerChatIds.add(ctx.chat.id);
-  if(!registry.length)return ctx.reply(E.chart+' No bots registered.');
-  await ctx.reply(E.chart+' Checking bots...');
-  var msg=E.chart+' <b>Bot Health</b>\n\n';
-  for(var i=0;i<registry.length;i++){
-    var b=registry[i];var ok=false;
-    try{var r=await Promise.race([fetch(b.url+'/health'),new Promise(function(_,rej){setTimeout(function(){rej(new Error('t'));},7000);})]);ok=r&&r.ok;}catch(_){}
-    msg+=(i+1)+'. <b>'+b.ticker+'</b> \u2014 '+(ok?E.check+' Online':E.xmark+' Offline')+'\n   '+b.url+'\n\n';
-  }
-  return ctx.reply(msg,{parse_mode:'HTML',disable_web_page_preview:true});
-});
+bot.command('stats',async function(ctx){
+  ownerChatIds.add(ctx.chat.id);
+  if(!registry.length)return ctx.reply(E.chart+' No bots registered. Use /build or /addbot.');
+  await ctx.reply(E.chart+' Checking all bots...');
+  await sendDailyReport();
+});;
 
 
 //  WIZARD BUTTON CALLBACKS 
@@ -417,6 +422,25 @@ bot.action(/^w_tax_manual_(.+)$/,async function(ctx){
 });
 
 // Max wallet buttons
+bot.action(/^w_stage_(live|prelaunch|noCA)_(.+)$/,async function(ctx){
+  await ctx.answerCbQuery();
+  var stage=ctx.match[1],uid=ctx.match[2],s=sessions[uid];
+  if(!s)return ctx.reply(E.xmark+' Session expired.');
+  s.d.stage=stage;
+  // noCA  skip CA, twitter, tax, maxwallet, lp steps
+  if(stage==='noCA'){
+    s.d.ca='TBA';
+    // Keep twitter  X is still visible even with no CA
+    s.d.buyTax='0';
+    s.d.sellTax='0';
+    s.d.renounced='PENDING';
+    s.d.locked='PENDING';
+  }
+  s.step=nextStep(s);
+  try{await ctx.deleteMessage();}catch(_){}
+  await showStep(ctx,s,uid);
+});
+
 bot.action(/^w_sil_(\d+)_(.+)$/,async function(ctx){
   await ctx.answerCbQuery();var val=ctx.match[1],uid=ctx.match[2],s=sessions[uid];
   if(!s)return ctx.reply(E.xmark+' Session expired.');
@@ -485,6 +509,24 @@ bot.action(/^ef_image_(\d+)$/,async function(ctx){
   editSessions[uid]={idx:i,field:'image'};try{await ctx.deleteMessage();}catch(_){}
   return ctx.reply(E.pencil+' Send new bot image (photo):');
 });
+bot.action(/^ef_stage_(\d+)$/,async function(ctx){
+  await ctx.answerCbQuery();var i=parseInt(ctx.match[1]),b=registry[i];if(!b)return ctx.reply('Not found.');
+  try{await ctx.deleteMessage();}catch(_){}
+  return ctx.reply('\u{1F7E2} Project stage:',{reply_markup:{inline_keyboard:[
+    [{text:'\u{1F7E2} Already live \u2014 CA is public',callback_data:'esg_live_'+i}],
+    [{text:'\u{1F7E1} About to launch \u2014 CA ready, not dropped',callback_data:'esg_prelaunch_'+i}],
+    [{text:'\u26AA Pre-launch \u2014 no CA yet',callback_data:'esg_noCA_'+i}],
+    [{text:E.xmark+' Cancel',callback_data:'ecancel'}],
+  ]}});
+});
+
+bot.action(/^esg_(live|prelaunch|noCA)_(\d+)$/,async function(ctx){
+  await ctx.answerCbQuery();var stage=ctx.match[1],i=parseInt(ctx.match[2]),b=registry[i];if(!b)return ctx.reply('Not found.');
+  b.d=b.d||{};b.d.stage=stage;
+  try{await ctx.deleteMessage();}catch(_){}
+  await pushAndSave(ctx,b,'stage updated to '+stage);
+});
+
 bot.action(/^ef_sil_(\d+)$/,async function(ctx){
   await ctx.answerCbQuery();var i=parseInt(ctx.match[1]),b=registry[i];if(!b)return ctx.reply('Not found.');
   try{await ctx.deleteMessage();}catch(_){}
@@ -705,7 +747,7 @@ bot.on('text',async function(ctx){
     return;
   }
 
-    var btn_steps=['chain','mode','gt','status','pers','rmode','sil','tax','maxwallet','lp'];
+    var btn_steps=['chain','mode','gt','status','stage','pers','rmode','sil','tax','maxwallet','lp'];
   if(btn_steps.includes(s.step)){
     var mb=await ctx.reply('Please tap one of the buttons above.');s.lastMsgId=mb.message_id;return;
   }
@@ -835,7 +877,14 @@ async function doBuild(ctx,s,uid){
       '1. Wait 3-5 min for bot to build\n'+
       '2. Add bot to your Telegram group\n'+
       '3. Make it admin (delete messages + restrict)\n'+
-      '4. Use <code>/'+d.revealCmd+'</code> in group to reveal CA',
+      '4. Use <code>/'+d.revealCmd+'</code> in group to reveal CA'+
+      (d.stage==='noCA'?'\n\n'+
+        E.warn+' <b>When your CA is ready:</b>\n'+
+        '1. Come back to this bot\n'+
+        '2. Send /edit \u2192 select '+d.ticker+'\n'+
+        '3. Tap CA \u2192 paste your contract address\n'+
+        '4. Send /rebuild \u2192 select '+d.ticker+'\n'+
+        '5. Your bot will immediately handle CA requests':''),
       {parse_mode:'HTML',disable_web_page_preview:true}
     );
   }else{delete sessions[uid];}
@@ -935,6 +984,7 @@ function genGuard(d,ci){
   var RENOUNCED=d.renounced||'NOT RENOUNCED';
   var LOCKED=d.locked||'NOT LOCKED';
   var IS_CTO=d.status==='cto';
+  var STAGE=d.stage||'live';
   var REVEAL=(d.revealCmd||'revealca').replace(/^\//,'');
   var HIDE=(d.hideCmd||'hideca').replace(/^\//,'');
   var GT=d.guardType||'standard';
@@ -961,7 +1011,7 @@ function genGuard(d,ci){
   ln("var bot=new Telegraf(BOT_TOKEN);");
   ln("var app=express();app.use(express.json());");
   ln("var _SF='/tmp/state.json';");
-  ln("var caUnlocked=false,groupChatId=null;");
+  ln("var caUnlocked="+(STAGE==='live'?'true':'false')+",groupChatId=null;");
   ln("function loadState(){try{var s=JSON.parse(fs.readFileSync(_SF,'utf8'));caUnlocked=!!s.u;groupChatId=s.g||null;}catch(_){}}");
   ln("function saveState(){try{fs.writeFileSync(_SF,JSON.stringify({u:caUnlocked,g:groupChatId}));}catch(_){}}");
   ln("loadState();");
@@ -989,8 +1039,16 @@ function genGuard(d,ci){
   ln("bot.command('socials',function(ctx){return ctx.reply('<a href=\\'"+CHART+"\\'>Chart</a> | <a href=\\'"+BUY_URL+"\\'>"+DEX+"</a>'+(TWITTER?' | <a href=\\''+TWITTER+'\\'>Twitter</a>':'')+(WEBSITE?' | <a href=\\''+WEBSITE+'\\'>Website</a>':''),{parse_mode:'HTML',disable_web_page_preview:true});});");
   ln("bot.command('links',function(ctx){return ctx.reply('<a href=\\'"+CHART+"\\'>Chart</a> | <a href=\\'"+BUY_URL+"\\'>"+DEX+"</a>'+(TWITTER?' | <a href=\\''+TWITTER+'\\'>Twitter</a>':'')+(WEBSITE?' | <a href=\\''+WEBSITE+'\\'>Website</a>':''),{parse_mode:'HTML',disable_web_page_preview:true});});");
   ln("bot.command('info',function(ctx){return ctx.reply('<b>"+TICKER+"</b> \\u2014 "+CHAIN_LBL+"\\n\\nSupply: "+SUPPLY+"\\n"+(MAXPCT?'Max Wallet: '+MAXPCT+'\\n':'')+"Tax: "+BUYTAX+"% buy / "+SELLTAX+"% sell\\nContract: "+RENOUNCED+"\\nLP: "+LOCKED+"'+(TWITTER?'\\nTwitter: '+TWITTER:''),{parse_mode:'HTML',disable_web_page_preview:true});});");
-  ln("bot.command('"+REVEAL+"',async function(ctx){var t=ctx.chat&&ctx.chat.type;if(t==='private'){caUnlocked=true;saveState();return ctx.reply('CA is now REVEALED.');}var a=await isAdmin(ctx,ctx.from.id);if(!a)return;caUnlocked=true;saveState();var m=await ctx.reply('CA is now live.');autoDel(ctx.chat.id,m.message_id,10000);});");
-  ln("bot.command('"+HIDE+"',async function(ctx){var t=ctx.chat&&ctx.chat.type;if(t==='private'){caUnlocked=false;saveState();return ctx.reply('CA hidden.');}var a=await isAdmin(ctx,ctx.from.id);if(!a)return;caUnlocked=false;saveState();var m=await ctx.reply('CA is now hidden.');autoDel(ctx.chat.id,m.message_id,10000);});");
+    ln("var SHILL_MSGS=[");
+  ln("  'Looking for a community-driven token on "+CHAIN_LBL+" with real conviction?\\n\\n"+TICKER+" is the answer!\\n\\nFully renounced. LP locked. Community owns this completely.\\n\\n'+(caUnlocked?'CA:\\n'+CA:'CA coming soon. Watch this space.'),");
+  ln("  'Don\\'t sleep on "+TICKER+".\\n\\nNo dev. No rug. Just holders who believe.\\n\\nCommunity-owned. Renounced. Locked.\\n\\n'+(caUnlocked?'CA:\\n'+CA:'CA dropping soon. Stay close.'),");
+  ln("  'Are you early to "+TICKER+"?\\n\\nStrong narrative. Strong community. No games.\\n\\nThis is the move.\\n\\n'+(caUnlocked?'CA:\\n'+CA:'CA incoming.'),");
+  ln("];");
+  ln("bot.command('shill',function(ctx){return sendImg(ctx.chat.id,SHILL_MSGS[Math.floor(Math.random()*SHILL_MSGS.length)],{});});");
+  if(STAGE==='prelaunch'){
+    ln("bot.command('"+REVEAL+"',async function(ctx){var t=ctx.chat&&ctx.chat.type;if(t==='private'){caUnlocked=true;saveState();return ctx.reply('CA is now REVEALED.');}var a=await isAdmin(ctx,ctx.from.id);if(!a)return;caUnlocked=true;saveState();var m=await ctx.reply('CA is now live.');autoDel(ctx.chat.id,m.message_id,10000);});");
+    ln("bot.command('"+HIDE+"',async function(ctx){var t=ctx.chat&&ctx.chat.type;if(t==='private'){caUnlocked=false;saveState();return ctx.reply('CA hidden.');}var a=await isAdmin(ctx,ctx.from.id);if(!a)return;caUnlocked=false;saveState();var m=await ctx.reply('CA is now hidden.');autoDel(ctx.chat.id,m.message_id,10000);});");
+  }
   ln("bot.on('new_chat_members',async function(ctx){");
   ln("  if(ctx.message.new_chat_members.some(function(m){return m.is_bot;}))return;");
   ln("  try{await ctx.deleteMessage();}catch(_){}") ;
@@ -1112,48 +1170,74 @@ function genGuard(d,ci){
 
 //  FACTORY STARTUP 
 //  DAILY REPORT 
+// Track bot uptime
+var botUptimeTracker={}; // url -> {firstSeen, lastOnline, wasOffline}
+
 async function sendDailyReport(){
   if(!registry.length||!ownerChatIds.size)return;
-  var lines=[E.chart+' <b>Daily Bot Report</b>\n'];
+  var now=Date.now();
+  var lines=[];
+  lines.push(E.chart+' <b>Bot Status Report</b>');
+  lines.push('<i>'+new Date().toUTCString().replace('GMT','UTC')+'</i>');
+  lines.push('');
   var anyOffline=false;
   for(var i=0;i<registry.length;i++){
     var b=registry[i];var ok=false;
+    var t=botUptimeTracker[b.url]||{firstSeen:now,lastOnline:null,downSince:null};
+    botUptimeTracker[b.url]=t;
     try{
-      var r=await Promise.race([
-        fetch(b.url+'/health'),
-        new Promise(function(_,rej){setTimeout(function(){rej(new Error('t'));},8000);}),
-      ]);
+      var r=await Promise.race([fetch(b.url+'/health'),new Promise(function(_,rej){setTimeout(function(){rej(new Error('t'));},8000);})]);
       ok=r&&r.ok;
     }catch(_){}
-    lines.push((i+1)+'. <b>'+b.ticker+'</b> \u2014 '+(ok?E.check+' Online':E.xmark+' Offline'));
-    if(!ok)anyOffline=true;
+    if(ok){t.lastOnline=now;t.downSince=null;}
+    else{if(!t.downSince)t.downSince=now;anyOffline=true;}
+    var upStr='';
+    if(ok&&t.lastOnline){
+      var upMs=now-t.firstSeen;
+      var upH=Math.floor(upMs/3600000);
+      var upD=Math.floor(upH/24);
+      upStr=upD>0?' \u2014 up '+upD+'d '+(upH%24)+'h':' \u2014 up '+upH+'h';
+    }
+    var downStr='';
+    if(!ok&&t.downSince){
+      var downMs=now-t.downSince;
+      var downM=Math.round(downMs/60000);
+      downStr=' \u2014 down '+downM+'m';
+    }
+    lines.push((i+1)+'. <b>'+b.ticker+'</b> ('+(b.chain||'bsc').toUpperCase()+') '+(ok?E.check+' Online':E.xmark+' Offline')+(ok?upStr:downStr));
+    lines.push('   Mode: '+(b.mode==='guard'?E.shield+' Guard':E.robot+' Full')+' \u2022 Status: '+(b.d&&b.d.status==='cto'?'CTO':'Active dev'));
+    lines.push('');
   }
-  lines.push('');
   if(anyOffline){
     lines.push(E.warn+' <b>Action needed:</b>');
-    lines.push('One or more bots are offline.');
-    lines.push('\u2022 /stats \u2014 see details');
+    lines.push('\u2022 /stats \u2014 check details');
     lines.push('\u2022 /rebuild \u2014 push fresh code');
-    lines.push('\u2022 Contact support if issue persists');
+    lines.push('\u2022 Contact support if persists');
   } else {
     lines.push(E.check+' All bots are running smoothly.');
   }
   var msg=lines.join('\n');
   for(var cid of ownerChatIds){
-    try{await bot.telegram.sendMessage(cid,msg,{parse_mode:'HTML'});}catch(_){}
+    try{await bot.telegram.sendMessage(cid,msg,{parse_mode:'HTML',disable_web_page_preview:true});}catch(_){}
   }
+  console.log('Report sent to',ownerChatIds.size,'owner(s)');
 }
+
 function scheduleDailyReport(){
-  var now=new Date();
-  var next=new Date();
-  next.setUTCHours(9,0,0,0);
-  if(next<=now)next.setUTCDate(next.getUTCDate()+1);
-  var wait=next.getTime()-now.getTime();
-  setTimeout(function(){
-    sendDailyReport();
-    setInterval(sendDailyReport,24*60*60*1000);
-  },wait);
-  console.log('Daily report scheduled in',Math.round(wait/3600000),'hr(s)');
+  // Fire at 9am UTC and 9pm UTC (10am WAT + 10pm WAT) every day
+  var slots=[9*3600000, 21*3600000]; // 9:00 UTC and 21:00 UTC
+  function scheduleNext(){
+    var now=new Date();
+    var nowMs=now.getUTCHours()*3600000+now.getUTCMinutes()*60000+now.getUTCSeconds()*1000;
+    var next=slots.find(function(t){return t>nowMs;});
+    var wait=next!==undefined?next-nowMs:(86400000-nowMs+slots[0]);
+    console.log('Next report in',Math.round(wait/3600000*10)/10,'hr(s) at',(next!==undefined?(next/3600000)+'00':slots[0]/3600000+'00')+'UTC');
+    setTimeout(function(){
+      sendDailyReport();
+      scheduleNext();
+    },wait);
+  }
+  scheduleNext();
 }
 
 
@@ -1170,6 +1254,7 @@ function genFull(d,ci){
   var RENOUNCED=d.renounced||'NOT RENOUNCED';
   var LOCKED=d.locked||'NOT LOCKED';
   var IS_CTO=d.status==='cto';
+  var STAGE=d.stage||'live';
   var NARR=JSON.stringify(d.narrative||'');
   var PERS=d.personality||'alpha';
   var RMODE=d.responseMode||'focused';
@@ -1208,7 +1293,7 @@ function genFull(d,ci){
   ln("var groq=new Groq({apiKey:GROQ_API_KEY});");
   ln("var app=express();app.use(express.json());");
   ln("var _SF='/tmp/state.json';");
-  ln("var caUnlocked=false,groupChatId=null,silTimer=null;");
+  ln("var caUnlocked="+(STAGE==='live'?'true':'false')+",groupChatId=null,silTimer=null;");
   ln("var SIL_DELAY=" + (d.silenceBreaker||"3600000") + ";");
   ln("function loadState(){try{var s=JSON.parse(fs.readFileSync(_SF,'utf8'));caUnlocked=!!s.u;groupChatId=s.g||null;}catch(_){}}");
   ln("function saveState(){try{fs.writeFileSync(_SF,JSON.stringify({u:caUnlocked,g:groupChatId}));}catch(_){}}");
@@ -1254,8 +1339,37 @@ function genFull(d,ci){
   ln("function resetSil(){if(silTimer)clearTimeout(silTimer);if(SIL_DELAY===0||SIL_DELAY==='0')return;silTimer=setTimeout(fireSilence,parseInt(SIL_DELAY));}");
 
   // Shoutout
-  ln("async function doShoutout(){if(!groupChatId||!SHOUTOUT_ON)return;try{var admins=await bot.telegram.getChatAdministrators(groupChatId);var humans=admins.filter(function(a){return!a.user.is_bot;});var names=humans.map(function(a){return a.user.username?'@'+a.user.username:a.user.first_name;});if(!names.length)return schedShout();var ppt='1-2 warm lines. Shoutout to admins keeping "+TICKER+" alive: '+names.join(', ')+'. Sound genuine. Tag them.';var msg=await smartAsk(ppt);if(msg&&msg!=='IGNORE'){var sm=await bot.telegram.sendMessage(groupChatId,msg);setTimeout(function(){try{bot.telegram.deleteMessage(groupChatId,sm.message_id);}catch(_){}},7200000);}}catch(_){}schedShout();}");
-  ln("function schedShout(){if(shoutTimer)clearTimeout(shoutTimer);if(!SHOUTOUT_ON)return;var slots=[21600000,43200000,61200000,75600000];var now=Date.now()%86400000;var next=slots.find(function(t){return t>now;});var wait=next!==undefined?next-now:86400000-now+slots[0];wait+=Math.floor(Math.random()*1800000);shoutTimer=setTimeout(doShoutout,wait);}");
+  ln("async function doShoutout(){");
+  ln("  if(!groupChatId||!SHOUTOUT_ON){schedShout();return;}");
+  ln("  try{");
+  ln("    var admins=await bot.telegram.getChatAdministrators(groupChatId);");
+  ln("    var humans=admins.filter(function(a){return!a.user.is_bot;});");
+  ln("    var names=humans.map(function(a){return a.user.username?'@'+a.user.username:a.user.first_name;});");
+  ln("    if(!names.length){schedShout();return;}");
+  ln("    var ppt='Write 1-2 warm genuine lines appreciating these "+TICKER+" admins for keeping the community alive: '+names.join(', ')+'. Be specific, sound human, tag them by name.';");
+  ln("    var msg=await smartAsk(ppt);");
+  ln("    if(msg&&msg!=='IGNORE'&&msg.length>5){");
+  ln("      var sm=await bot.telegram.sendMessage(groupChatId,msg);");
+  ln("      setTimeout(function(){try{bot.telegram.deleteMessage(groupChatId,sm.message_id);}catch(_){}},7200000);");
+  ln("      console.log('Shoutout sent to '+groupChatId);");
+  ln("    }");
+  ln("  }catch(e){console.log('Shoutout error:',e.message);}");
+  ln("  schedShout();");
+  ln("}");
+
+  ln("function schedShout(){");
+  ln("  if(shoutTimer)clearTimeout(shoutTimer);");
+  ln("  if(!SHOUTOUT_ON||!groupChatId)return;");
+  ln("  // Fire at 6am, 12pm, 5pm, 9pm WAT (5,11,16,20 UTC) + random offset");
+  ln("  var slots=[18000000,39600000,57600000,72000000];");
+  ln("  var now=Date.now()%86400000;");
+  ln("  var next=slots.find(function(t){return t>now;});");
+  ln("  var wait=next!==undefined?next-now:(86400000-now+slots[0]);");
+  ln("  wait+=Math.floor(Math.random()*3600000);");
+  ln("  shoutTimer=setTimeout(doShoutout,wait);");
+  ln("  console.log('Next shoutout in',Math.round(wait/60000),'min');");
+  ln("}");
+
   ln("bot.command('shoutout',async function(ctx){var admin=await isAdmin(ctx,ctx.from.id);if(!admin)return;var arg=(ctx.message.text||'').split(' ')[1]||'';if(arg==='on'){SHOUTOUT_ON=true;schedShout();return ctx.reply('\\u2705 Admin shoutouts enabled. Fires 2-4x daily.');}if(arg==='off'){SHOUTOUT_ON=false;if(shoutTimer)clearTimeout(shoutTimer);return ctx.reply('\\u274C Admin shoutouts disabled.');}if(arg==='now'){await doShoutout();return;}return ctx.reply('Usage: /shoutout on / off / now');});");
 
   // Commands  CA and X hardcoded
@@ -1265,8 +1379,22 @@ function genFull(d,ci){
   ln("bot.command('socials',function(ctx){return ctx.reply('<a href=\\'"+CHART+"\\'>Chart</a> | <a href=\\'"+BUY_URL+"\\'>"+DEX+"</a>'+(TWITTER?' | <a href=\\''+TWITTER+'\\'>Twitter</a>':'')+(WEBSITE?' | <a href=\\''+WEBSITE+'\\'>Website</a>':''),{parse_mode:'HTML',disable_web_page_preview:true});});");
   ln("bot.command('links',function(ctx){return ctx.reply('<a href=\\'"+CHART+"\\'>Chart</a> | <a href=\\'"+BUY_URL+"\\'>"+DEX+"</a>'+(TWITTER?' | <a href=\\''+TWITTER+'\\'>Twitter</a>':'')+(WEBSITE?' | <a href=\\''+WEBSITE+'\\'>Website</a>':''),{parse_mode:'HTML',disable_web_page_preview:true});});");
   ln("bot.command('info',function(ctx){return ctx.reply('<b>"+TICKER+"</b> \\u2014 "+CHAIN_LBL+"\\n\\nSupply: "+SUPPLY+"\\n"+(MAXPCT?'Max Wallet: '+MAXPCT+'\\n':'')+"Tax: "+BUYTAX+"% buy / "+SELLTAX+"% sell\\nContract: "+RENOUNCED+"\\nLP: "+LOCKED+"'+(TWITTER?'\\nTwitter: '+TWITTER:''),{parse_mode:'HTML',disable_web_page_preview:true});});");
-  ln("bot.command('"+REVEAL+"',async function(ctx){var t=ctx.chat&&ctx.chat.type;if(t==='private'){caUnlocked=true;saveState();return ctx.reply('CA is now REVEALED.');}var a=await isAdmin(ctx,ctx.from.id);if(!a)return;caUnlocked=true;saveState();var m=await ctx.reply('CA is now live.');autoDel(ctx.chat.id,m.message_id,10000);});");
-  ln("bot.command('"+HIDE+"',async function(ctx){var t=ctx.chat&&ctx.chat.type;if(t==='private'){caUnlocked=false;saveState();return ctx.reply('CA hidden.');}var a=await isAdmin(ctx,ctx.from.id);if(!a)return;caUnlocked=false;saveState();var m=await ctx.reply('CA is now hidden.');autoDel(ctx.chat.id,m.message_id,10000);});");
+  ln("bot.command('shill',async function(ctx){");
+  ln("  try{");
+  ln("    var p='Write a punchy shill for "+TICKER+", a "+CHAIN_LBL+" meme token. '+");
+  ln("      'Opener: catchy question. Then: "+TICKER+" is the answer! Then: 1-2 lines (community, renounced, locked, narrative). '+");
+  ln("      'Then: load up line. Max 6 lines total. No hashtags. Real energy.';");
+  ln("    var sm=await smartAsk(p);");
+  ln("    if(!sm||sm==='IGNORE')sm='"+TICKER+" is the move. Community owns it. Renounced and locked. Load up.';");
+  ln("    var caLine=caUnlocked?'\\nCA:\\n'+CA:'\\nCA coming soon. Stay close.';");
+  ln("    await sendImg(ctx.chat.id,sm+caLine,{});");
+  ln("  }catch(e){ctx.reply('"+TICKER+" is the move. Community owns it. Load up.');}");
+  ln("});");
+
+  if(STAGE==='prelaunch'){
+    ln("bot.command('"+REVEAL+"',async function(ctx){var t=ctx.chat&&ctx.chat.type;if(t==='private'){caUnlocked=true;saveState();return ctx.reply('CA is now REVEALED.');}var a=await isAdmin(ctx,ctx.from.id);if(!a)return;caUnlocked=true;saveState();var m=await ctx.reply('CA is now live.');autoDel(ctx.chat.id,m.message_id,10000);});");
+    ln("bot.command('"+HIDE+"',async function(ctx){var t=ctx.chat&&ctx.chat.type;if(t==='private'){caUnlocked=false;saveState();return ctx.reply('CA hidden.');}var a=await isAdmin(ctx,ctx.from.id);if(!a)return;caUnlocked=false;saveState();var m=await ctx.reply('CA is now hidden.');autoDel(ctx.chat.id,m.message_id,10000);});");
+  }
 
   // New members
   ln("bot.on('new_chat_members',async function(ctx){if(ctx.message.new_chat_members.some(function(m){return m.is_bot;}))return;try{await ctx.deleteMessage();}catch(_){}for(var i=0;i<ctx.message.new_chat_members.length;i++){var mem=ctx.message.new_chat_members[i];var h=mem.username?'@'+mem.username:mem.first_name;var opts=[h+' joined "+TICKER+".\\n"+RENOUNCED+" \\u2022 LP "+LOCKED+" \\u2022 "+BUYTAX+"%/"+SELLTAX+"% tax\\n'+(caUnlocked?CA:'CA coming soon.'),'Welcome, '+h+'. "+TICKER+" \\u2022 "+CHAIN_LBL+"\\n'+(caUnlocked?'CA: '+CA:'Launch incoming.')];var msg=opts[Math.floor(Math.random()*opts.length)];var s=await ctx.reply(msg);autoDel(ctx.chat.id,s.message_id,60000);}});");
