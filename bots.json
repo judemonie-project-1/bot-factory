@@ -58,5 +58,42 @@
       "tg": "https://t.me/mpccto",
       "silenceBreaker": "600000"
     }
+  },
+  {
+    "ticker": "",
+    "chain": "bsc",
+    "mode": "full",
+    "repoName": "-bot-rp74",
+    "ghOwner": "judemonie-project-1",
+    "svcId": "srv-d7co0a58nd3s73aro5lg",
+    "url": "https://bot-rp74.onrender.com",
+    "d": {
+      "chain": "bsc",
+      "mode": "full",
+      "status": "launch",
+      "guardType": "standard",
+      "personality": "professional",
+      "responseMode": "conversational",
+      "silenceBreaker": "3600000",
+      "stage": "live",
+      "name": "APE CARTEL",
+      "ticker": "",
+      "ca": "0xF730Eb411F298cc146dA5B81d2f0C6D1FEe71AA6",
+      "twitter": "https://x.com/ApeCartel_bsc",
+      "narrative": "🦍 APE CARTEL ($ACRT) 🦍\n\nAPE CARTEL isn’t just another token… it’s a movement.\n\nBuilt for dominance. Powered by pure degen ambition. This is where real players step in and take over.\n\nThe apes are loading. Bags are stacking.\nMission is simple: TOTAL TAKEOVER 🚀\n\nFrom low cap to breakout levels, $ACRT is positioned to send hard and leave doubters behind.\n\nNo fear. No limits. Just raw moon energy 🌕🔥\nAPE CARTEL BUY OR WATCH FROM THE SIDELINES. 🦍🔥",
+      "supply": "N/A",
+      "buyTax": "5",
+      "sellTax": "5",
+      "maxWalletPct": "4%",
+      "maxWalletTokens": "",
+      "renounced": "",
+      "locked": "LOCKED",
+      "revealCmd": "ggkarowi",
+      "hideCmd": "wq98h6wp",
+      "renderUrl": "",
+      "repoName": "",
+      "tg": "https://t.me/apecartel_bsc"
+    },
+    "builtAt": 1775861803630
   }
 ]
