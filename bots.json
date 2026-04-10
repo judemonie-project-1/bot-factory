@@ -86,7 +86,7 @@
       "sellTax": "5",
       "maxWalletPct": "4%",
       "maxWalletTokens": "",
-      "renounced": "",
+      "renounced": "RENOUNCED",
       "locked": "LOCKED",
       "revealCmd": "ggkarowi",
       "hideCmd": "wq98h6wp",
