@@ -70,7 +70,7 @@ async function fetchAllData(ca,chain){
   var result={
     name:'',ticker:'',supply:'',supplyRaw:0,
     buyTax:'',sellTax:'',twitter:'',
-    renounced:false,renouncedText:'NOT RENOUNCED',
+    renounced:false,renouncedText:'',
     found:false,errors:[],
   };
 
@@ -168,7 +168,7 @@ function newSession(isAdd){
        name:'',ticker:'',ca:'',twitter:'',narrative:'',
        supply:'N/A',buyTax:'5',sellTax:'5',
        maxWalletPct:'',maxWalletTokens:'',
-       renounced:'NOT RENOUNCED',locked:'NOT LOCKED',
+       renounced:'',locked:'',
        revealCmd:'',hideCmd:'',botToken:'',renderUrl:'',repoName:''},
     imgBuf:null,fetchedData:null};
 }
@@ -1023,7 +1023,12 @@ bot.on('text',async function(ctx){
       if(data.ticker&&data.ticker!=='$TOKEN')s.d.ticker=data.ticker;
       if(data.supply)s.d.supply=data.supply;
       if(data.twitter)s.d.twitter=data.twitter;
-      if(data.renouncedText)s.d.renounced=data.renouncedText;
+      if(data.renounced===true){
+        s.d.renounced='RENOUNCED';
+      } else {
+        // Could not verify on-chain  leave blank so user confirms in wizard step
+        s.d.renounced=s.d.renounced||'';
+      }
       var foundMsg=E.check+' <b>Token data found!</b>\n\n'+
         '<b>Name:</b> '+data.name+'\n'+
         '<b>Ticker:</b> '+data.ticker+'\n'+
@@ -1048,9 +1053,13 @@ bot.on('text',async function(ctx){
   // Twitter
   if(s.step==='twitter'){
     var tw=text.trim();
-    // Validate  reject if it looks like a render URL
     if(tw.includes('onrender.com')||tw==='-')tw='';
     s.d.twitter=tw;
+    s.step=nextStep(s);await showStep(ctx,s,uid);return;
+  }
+  if(s.step==='tg'){
+    var tg=text.trim();
+    s.d.tg=(tg.startsWith('http')||tg.startsWith('@')||tg==='-'||tg.toLowerCase()==='skip')?tg.toLowerCase()==='skip'||tg==='-'?'':tg:'';
     s.step=nextStep(s);await showStep(ctx,s,uid);return;
   }
   // Narrative
@@ -1306,7 +1315,12 @@ function genGuard(d,ci){
   ln("  'Don\\'t sleep on "+TICKER+".\\n\\nNo dev. No rug. Just holders who believe.\\n\\nCommunity-owned. Renounced. Locked.\\n\\n'+(caUnlocked?'CA:\\n'+CA:'CA dropping soon. Stay close.'),");
   ln("  'Are you early to "+TICKER+"?\\n\\nStrong narrative. Strong community. No games.\\n\\nThis is the move.\\n\\n'+(caUnlocked?'CA:\\n'+CA:'CA incoming.'),");
   ln("];");
-  ln("bot.command('shill',function(ctx){return sendWithTracker(shillMsg,ctx.chat.id,SHILL_MSGS[Math.floor(Math.random()*SHILL_MSGS.length)],{});});");
+  ln("bot.command('shill',function(ctx){");
+  ln("  var base=SHILL_MSGS[Math.floor(Math.random()*SHILL_MSGS.length)];");
+  ln("  var caLine=caUnlocked?'\\n\\nCA:\\n'+CA:'\\n\\nCA dropping soon.';");
+  ln("  var tgLine=TG?'\\n\\nJoin: '+TG:'';");
+  ln("  return sendWithTracker(shillMsg,ctx.chat.id,base+caLine+tgLine,{});");
+  ln("});");
   if(STAGE==='prelaunch'){
     ln("bot.command('"+REVEAL+"',async function(ctx){var t=ctx.chat&&ctx.chat.type;if(t==='private'){caUnlocked=true;saveState();return ctx.reply('CA is now REVEALED.');}var a=await isAdmin(ctx,ctx.from.id);if(!a)return;caUnlocked=true;saveState();var m=await ctx.reply('CA is now live.');autoDel(ctx.chat.id,m.message_id,10000);});");
     ln("bot.command('"+HIDE+"',async function(ctx){var t=ctx.chat&&ctx.chat.type;if(t==='private'){caUnlocked=false;saveState();return ctx.reply('CA hidden.');}var a=await isAdmin(ctx,ctx.from.id);if(!a)return;caUnlocked=false;saveState();var m=await ctx.reply('CA is now hidden.');autoDel(ctx.chat.id,m.message_id,10000);});");
