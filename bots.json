@@ -95,5 +95,42 @@
       "tg": "https://t.me/apecartel_bsc"
     },
     "builtAt": 1775861803630
+  },
+  {
+    "ticker": "",
+    "chain": "bsc",
+    "mode": "full",
+    "repoName": "-bot-a4e0",
+    "ghOwner": "judemonie-project-1",
+    "svcId": "srv-d7fbn0rbc2fs73dld2l0",
+    "url": "https://bot-a4e0.onrender.com",
+    "d": {
+      "chain": "bsc",
+      "mode": "full",
+      "status": "launch",
+      "guardType": "standard",
+      "personality": "alpha",
+      "responseMode": "conversational",
+      "silenceBreaker": "1800000",
+      "stage": "live",
+      "name": "APE CARTEL",
+      "ticker": "",
+      "ca": "0xF730Eb411F298cc146dA5B81d2f0C6D1FEe71AA6",
+      "twitter": "",
+      "narrative": "",
+      "supply": "N/A",
+      "buyTax": "5",
+      "sellTax": "5",
+      "maxWalletPct": "4.9%",
+      "maxWalletTokens": "",
+      "renounced": "",
+      "locked": "LOCKED",
+      "revealCmd": "xuzmmox8",
+      "hideCmd": "9t4qd2co",
+      "renderUrl": "",
+      "repoName": "",
+      "tg": ""
+    },
+    "builtAt": 1776204678002
   }
 ]
