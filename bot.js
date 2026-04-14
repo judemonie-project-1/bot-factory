@@ -344,7 +344,7 @@ bot.command('bots',function(ctx){ownerChatIds.add(ctx.chat.id);
   if(!registry.length)return ctx.reply(E.list+' No bots yet. Use /build.');
   var msg=E.list+' <b>Your Bots</b>\n\n';
   registry.forEach(function(b,i){
-    msg+=(i+1)+'. '+E.rocket+' <b>'+b.ticker+'</b> ('+b.chain.toUpperCase()+')\n'+
+    msg+=(i+1)+'. '+E.rocket+' <b>'+(b.ticker||b.d&&b.d.ticker||b.d&&b.d.name||'Bot '+(i+1))+'</b> ('+(b.chain||'bsc').toUpperCase()+')\n'+
       '   '+(b.mode==='guard'?E.shield+' Guard':E.robot+' Full')+
       ' \u2022 '+(b.d&&b.d.status==='cto'?'CTO':'Active dev')+'\n'+
       '   '+E.link+' '+b.url+'\n\n';
@@ -483,7 +483,7 @@ bot.command('edit',async function(ctx){
 bot.action(/^epk_(\d+)$/,async function(ctx){
   await ctx.answerCbQuery();var i=parseInt(ctx.match[1]),b=registry[i];
   if(!b)return ctx.reply('Not found.');
-  var uid=String(ctx.from.id);editSessions[uid]={idx:i};
+  var uid=String(ctx.from.id);delete sessions[uid];editSessions[uid]={idx:i};
   var d=b.d||{};
   try{await ctx.deleteMessage();}catch(_){}
   return ctx.reply(E.wrench+' <b>Edit '+b.ticker+'</b>\nWhat to change?',{parse_mode:'HTML',reply_markup:{inline_keyboard:[
@@ -491,7 +491,8 @@ bot.action(/^epk_(\d+)$/,async function(ctx){
     [{text:'TG Group: '+(d.tg?'set':'not set'),callback_data:'ef_tg_'+i}],
     [{text:'Silence Breaker: '+({'0':'Off','600000':'10 min','1800000':'30 min','3600000':'1 hr','7200000':'2 hr','10800000':'3 hr'}[String(d.silenceBreaker||'3600000')]||'1 hr'),callback_data:'ef_sil_'+i}],
     [{text:'Narrative',callback_data:'ef_narrative_'+i}],
-    [{text:'Supply',callback_data:'ef_supply_'+i}],
+    [{text:'CA: '+((d.ca||'').slice(0,8)+'...'),callback_data:'ef_ca_'+i}],
+        [{text:'Supply',callback_data:'ef_supply_'+i}],
     [{text:'Tax (buy/sell)',callback_data:'ef_tax_'+i}],
     [{text:'Max wallet %',callback_data:'ef_maxwallet_'+i}],
     [{text:'Renounced: '+(d.renounced||'NOT RENOUNCED'),callback_data:'ef_ren_'+i}],
@@ -503,10 +504,10 @@ bot.action(/^epk_(\d+)$/,async function(ctx){
   ]}});
 });
 
-bot.action(/^ef_(twitter|tg|narrative|supply|tax|maxwallet)_(\d+)$/,async function(ctx){
+bot.action(/^ef_(ca|twitter|tg|narrative|supply|tax|maxwallet)_(\d+)$/,async function(ctx){
   await ctx.answerCbQuery();var field=ctx.match[1],i=parseInt(ctx.match[2]),uid=String(ctx.from.id);
   editSessions[uid]={idx:i,field:field};
-  var asks={twitter:'New Twitter/X link:',tg:'New Telegram group link (e.g. https://t.me/yourgroup):',narrative:'New narrative (1-2 sentences):',supply:'New supply (e.g. 1B or 1,000,000,000):',tax:'New tax as buy/sell (e.g. 5/5):',maxwallet:'New max wallet % (e.g. 4.9 or - to remove):'};
+  var asks={ca:'New contract address (CA):',twitter:'New Twitter/X link:',tg:'New Telegram group link (e.g. https://t.me/yourgroup):',narrative:'New narrative (1-2 sentences):',supply:'New supply (e.g. 1B or 1,000,000,000):',tax:'New tax as buy/sell (e.g. 5/5):',maxwallet:'New max wallet % (e.g. 4.9 or - to remove):'};
   try{await ctx.deleteMessage();}catch(_){}
   return ctx.reply(E.pencil+' '+asks[field]);
 });
@@ -942,7 +943,8 @@ bot.on('text',async function(ctx){
     var b=registry[es.idx];if(!b){delete editSessions[uid];return;}
     try{await ctx.deleteMessage();}catch(_){}
     b.d=b.d||{};
-    if(es.field==='twitter')  b.d.twitter=text;
+    if(es.field==='ca')        b.d.ca=text.trim();
+        if(es.field==='twitter')  b.d.twitter=text;
     if(es.field==='tg')       b.d.tg=text.startsWith('http')||text.startsWith('@')?text:'';
     if(es.field==='narrative')b.d.narrative=text;
     if(es.field==='supply')   b.d.supply=text;
@@ -1511,7 +1513,7 @@ async function sendDailyReport(targetChatId){
     var d2=b.d||{};
     var modeStr=b.mode==='guard'?'Guard':'Full AI';
     var stageStr={'live':'Live','prelaunch':'Pre-launch','noCA':'No CA yet'}[d2.stage||'live']||'Live';
-    lines.push((i+1)+'. <b>'+b.ticker+'</b>');
+    lines.push((i+1)+'. <b>'+(b.ticker||b.d&&b.d.ticker||b.d&&b.d.name||'Bot '+i)+'</b> ('+(b.chain||'bsc').toUpperCase()+')');
     lines.push('   '+statusIcon+' '+statusWord+(upStr?' \u2022 Uptime: '+upStr:'')+(downStr?' \u2022 '+downStr:'')+(ping>0?' \u2022 Response: '+ping+'ms':''));
     lines.push('   '+modeStr+' \u2022 '+(d2.status==='cto'?'CTO':'Active dev')+' \u2022 '+stageStr);
     lines.push('');
