@@ -234,9 +234,9 @@ function nextStep(s){
   var skipSteps=(d.stage==='noCA')?['ca','tax','maxwallet','lp']:[];
   var flow=[];
   if(d.mode==='full')
-    flow=['chain','mode','status','stage','pers','rmode','sil','ca','twitter','tg','tax','maxwallet','lp','narrative','img','bottoken'];
+    flow=['chain','mode','status','stage','pers','rmode','sil','ca','ticker_manual','twitter','tg','tax','maxwallet','lp','narrative','img','bottoken'];
   else
-    flow=['chain','mode','gt','status','stage','sil','ca','twitter','tg','tax','maxwallet','lp','narrative','img','bottoken'];
+    flow=['chain','mode','gt','status','stage','sil','ca','ticker_manual','twitter','tg','tax','maxwallet','lp','narrative','img','bottoken'];
   if(isAdd&&!d.renderUrl)flow.push('renderurl');
   flow.push('confirm');
   if(skipSteps.length)flow=flow.filter(function(f){return!skipSteps.includes(f);});
@@ -661,12 +661,16 @@ bot.command('cleanup',async function(ctx){
   var regRepos=new Set(registry.map(function(b){return(b.repoName||'').toLowerCase();}));
   regRepos.add('bot-factory'); // never delete the factory
   // Find orphans
+  // Only target render services built by factory (pattern: name-bot-XXXX)
   var rOrphans=renderSvcs.filter(function(s){
     var u=s.url.toLowerCase();
-    return !regUrls.has(u)&&s.name!=='bot-factory'&&s.name.match(/-bot/);
+    var isFactoryBot=s.name.match(/^.+-bot-[a-z0-9]{4}$/)&&s.name!=='bot-factory';
+    return isFactoryBot&&!regUrls.has(u);
   });
+  // Only target repos built by factory (pattern: name-bot-XXXX)
   var gOrphans=ghRepos.filter(function(r){
-    return !regRepos.has(r.name.toLowerCase());
+    var isFactoryBot=r.name.match(/^.+-bot-[a-z0-9]{4}$/);
+    return isFactoryBot&&!regRepos.has(r.name.toLowerCase());
   });
   try{await ctx.telegram.deleteMessage(ctx.chat.id,pm.message_id);}catch(_){}
   if(!rOrphans.length&&!gOrphans.length){
@@ -676,14 +680,15 @@ bot.command('cleanup',async function(ctx){
   // Also find orphan cron jobs
   var cronJobs=await getCronJobs();
   var regNames=new Set(registry.map(function(b){return(b.repoName||'').toLowerCase();}));
+  // Only target cron jobs for factory-built bots (URL matches registry bot or factory bot pattern)
+  var factoryUrls=new Set(registry.map(function(b){return(b.url||'').replace(/\/health\/?$/,'').replace(/\/+$/,'').toLowerCase();}));
   var cOrphans=cronJobs.filter(function(j){
-    if(!j.url||!j.url.includes('.onrender.com'))return false;
-    var jHost=(j.url.match(/https?:\/\/([a-z0-9-]+)\.onrender\.com/)||[])[1]||'';
-    if(!jHost||jHost.includes('factory'))return false;
-    return !registry.some(function(b){
-      var bHost=(b.url||'').replace('https://','').split('.')[0];
-      return bHost&&bHost===jHost;
-    });
+    if(!j.url)return false;
+    var jBase=j.url.replace(/\/health\/?$/,'').replace(/\/+$/,'').toLowerCase();
+    var jHost=(jBase.match(/https?:\/\/([a-z0-9-]+)\.onrender\.com/)||[])[1]||'';
+    // Must match factory bot pattern AND not be in registry
+    var isFactoryBot=jHost.match(/^.+-bot-[a-z0-9]{4}$/)&&!jHost.includes('factory');
+    return isFactoryBot&&!factoryUrls.has(jBase);
   })
   cleanupSessions[uid]={renderOrphans:rOrphans,ghOrphans:gOrphans,cronOrphans:cOrphans};
   var msg=E.warn+' <b>Orphaned services found</b>\n\n';
@@ -808,9 +813,9 @@ bot.command('fixgroq',async function(ctx){
 });
 
 bot.command('rebuild',async function(ctx){
-  var el=registry.filter(function(b){return b.repoName&&b.ghOwner&&b.d&&b.d.ticker;});
-  if(!el.length)return ctx.reply(E.wrench+' No bots with data. Use /addbot first.');
-  var kb=el.map(function(b){var i=registry.indexOf(b);return[{text:b.ticker+' ('+b.chain.toUpperCase()+')',callback_data:'rbd_'+i}];});
+  var el=registry.filter(function(b){return b.repoName;});
+  if(!el.length)return ctx.reply(E.wrench+' No bots registered yet. Use /build.');
+  var kb=el.map(function(b){var i=registry.indexOf(b);return[{text:(b.ticker||b.d&&b.d.ticker||b.d&&b.d.name||'Bot '+(i+1))+' ('+(b.chain||'bsc').toUpperCase()+')',callback_data:'rbd_'+i}];});
   return ctx.reply(E.gear+' <b>Full rebuild from stored data:</b>\n<i>Use after changing personality, CTO mode, silence breaker etc via /edit</i>',{parse_mode:'HTML',reply_markup:{inline_keyboard:kb}});
 });
 bot.action(/^rbd_(\d+)$/,async function(ctx){
@@ -1042,10 +1047,10 @@ bot.on('text',async function(ctx){
       await sleep(3000);
       try{await ctx.telegram.deleteMessage(ctx.chat.id,fm2.message_id);}catch(_){}
     } else {
-      var nf=await ctx.reply(E.warn+' Token not found yet on BSCScan/DexScreener.\n\nThis could mean:\n\u2022 Token just launched (give it a few minutes)\n\u2022 Wrong CA or wrong chain selected\n\nContinuing with manual entry...',{parse_mode:'HTML'});
-      await sleep(3000);try{await ctx.telegram.deleteMessage(ctx.chat.id,nf.message_id);}catch(_){}
-      if(!s.d.ticker)s.d.ticker='$TOKEN';
-      if(!s.d.name)s.d.name='Token';
+      var nf=await ctx.reply(E.warn+' Could not auto-fetch token data.\n\nEnter your token ticker (e.g. $MPC):');
+      s.lastMsgId=nf.message_id;
+      s.step='ticker_manual';
+      return;
     }
     s.step=nextStep(s);
     await showStep(ctx,s,uid);
@@ -1053,6 +1058,15 @@ bot.on('text',async function(ctx){
   }
 
   // Twitter
+  if(s.step==='ticker_manual'){
+    var parts=text.trim().split(/\s+/);
+    var tk=parts[0]||'';
+    if(!tk.startsWith('\$'))tk='\$'+tk;
+    s.d.ticker=tk.toUpperCase();
+    if(parts[1])s.d.name=parts.slice(1).join(' ');
+    else if(!s.d.name||s.d.name==='Token')s.d.name=tk.replace('\$','');
+    s.step=nextStep(s);await showStep(ctx,s,uid);return;
+  }
   if(s.step==='twitter'){
     var tw=text.trim();
     if(tw.includes('onrender.com')||tw==='-')tw='';
@@ -1099,16 +1113,18 @@ async function doBuild(ctx,s,uid){
   await ctx.reply(E.gear+' Deploying <b>'+d.ticker+'</b>...',{parse_mode:'HTML'});
   var ghOwner='',svcId='',actualUrl=guessUrl;
   var steps=[
-    {n:'GitHub repo',fn:async function(){
+    {n:'Setting up code repository',fn:async function(){
       var g=await githubCreateRepo(repoName);
       ghOwner=g.full_name.split('/')[0];GH_OWNER=GH_OWNER||ghOwner;
       await sleep(4000);
       await githubPush(ghOwner,repoName,'bot.js',Buffer.from(genBot(d,ci,d.mode)));
       await githubPush(ghOwner,repoName,'package.json',Buffer.from(genPkg(d.name,d.mode)));
       var imgFile=d.ticker.replace(/\$/g,'').replace(/[^a-zA-Z0-9]/g,'').toLowerCase()+'.jpg';
-      if(s.imgBuf)await githubPush(ghOwner,repoName,imgFile,s.imgBuf);
+      if(s.imgBuf){
+        await githubPush(ghOwner,repoName,imgFile,s.imgBuf);
+      }
     }},
-    {n:'Render service',fn:async function(){
+    {n:'Deploying bot',fn:async function(){
       var oid=await renderOwner();
       var ev=[{key:'BOT_TOKEN',value:d.botToken},{key:'WEBHOOK_URL',value:guessUrl}];
       if(d.mode==='full'){
@@ -1131,11 +1147,8 @@ async function doBuild(ctx,s,uid){
     saveRegistry();delete sessions[uid];
     await ctx.reply(
       E.party+' <b>'+d.ticker+' is live!</b>\n\n'+
-      E.check+' Bot is registered and ready.\n'+
-      E.check+' Added to /bots automatically.\n'+
-      E.check+' Daily status reports active.\n\n'+
-      E.link+' Bot URL:\n<code>'+actualUrl+'</code>\n\n'+
-      
+      E.check+' Bot is live and ready for your group.\n'+
+      E.check+' Moderation, AI replies and reports are active.\n\n'+
       E.warn+' <b>Secret commands \u2014 save these:</b>\n'+
       'Reveal CA: <code>/'+d.revealCmd+'</code>\n'+
       'Hide CA:   <code>/'+d.hideCmd+'</code>\n\n'+
@@ -1286,14 +1299,14 @@ function genGuard(d,ci){
   ln("var _IMG1=path.join(__dirname,'"+(d.ticker.replace(/\\$/g,'').replace(/[^a-zA-Z0-9]/g,'').toLowerCase())+".jpg');");
   ln("var _IMG2=path.join(__dirname,'siren.jpg');");
   ln("var IMG=fs.existsSync(_IMG1)?_IMG1:(fs.existsSync(_IMG2)?_IMG2:_IMG1);");
-  ln("var IMG_BUF=null;try{if(fs.existsSync(IMG))IMG_BUF=fs.readFileSync(IMG);}catch(_){}");
+  ln("var IMG_BUF=null;try{if(fs.existsSync(IMG)){IMG_BUF=fs.readFileSync(IMG);console.log('Image loaded:',path.basename(IMG));}else{console.log('No image file found:',IMG);}}catch(e){console.log('Image error:',e.message);}");
   // IMG_BUF loaded above
   ln("var caMsg=new Map(),xMsg=new Map(),shillMsg=new Map(),strikes=new Map(),spamTracker=new Map();");
   ln("async function delPrev(map,cid){var mid=map.get(cid);if(mid){try{await bot.telegram.deleteMessage(cid,mid);}catch(_){}map.delete(cid);}}");
   // Silence breaker has its own tracker  never deleted by CA/X
   ln("var silImgId=null;");
   // Generic photo sender used by shill/x/ca with their own tracker map
-  ln("async function sendWithTracker(map,cid,cap,extra){await delPrev(map,cid);extra=extra||{};if(IMG_BUF){try{var m=await bot.telegram.sendPhoto(cid,{source:IMG_BUF},Object.assign({caption:cap,parse_mode:'HTML'},extra));map.set(cid,m.message_id);return m;}catch(e){IMG_BUF=null;}}var m2=await bot.telegram.sendMessage(cid,cap,Object.assign({parse_mode:'HTML'},extra));map.set(cid,m2.message_id);return m2;}");
+  ln("async function sendWithTracker(map,cid,cap,extra){await delPrev(map,cid);extra=extra||{};if(IMG_BUF){try{var m=await bot.telegram.sendPhoto(cid,{source:IMG_BUF},Object.assign({caption:cap,parse_mode:'HTML'},extra));map.set(cid,m.message_id);return m;}catch(e){console.log('Photo send failed:',e.message);}}var m2=await bot.telegram.sendMessage(cid,cap,Object.assign({parse_mode:'HTML'},extra));map.set(cid,m2.message_id);return m2;}");
   // Keep sendImg as alias for backwards compat (used by silence breaker separately)
   ln("async function sendImg(cid,cap,extra){return sendWithTracker(shillMsg,cid,cap,extra);}");
   ln("function autoDel(cid,mid,ms){setTimeout(function(){try{bot.telegram.deleteMessage(cid,mid);}catch(_){}},ms);}");
@@ -1617,13 +1630,13 @@ function genFull(d,ci){
   ln("var _IMG1=path.join(__dirname,'"+(d.ticker.replace(/\\$/g,'').replace(/[^a-zA-Z0-9]/g,'').toLowerCase())+".jpg');");
   ln("var _IMG2=path.join(__dirname,'siren.jpg');");
   ln("var IMG=fs.existsSync(_IMG1)?_IMG1:(fs.existsSync(_IMG2)?_IMG2:_IMG1);");
-  ln("var IMG_BUF=null;try{if(fs.existsSync(IMG))IMG_BUF=fs.readFileSync(IMG);}catch(_){}");
+  ln("var IMG_BUF=null;try{if(fs.existsSync(IMG)){IMG_BUF=fs.readFileSync(IMG);console.log('Image loaded:',path.basename(IMG));}else{console.log('No image file found:',IMG);}}catch(e){console.log('Image error:',e.message);}");
   // IMG_BUF loaded above
   ln("var caMsg=new Map(),xMsg=new Map(),shillMsg=new Map();");
   ln("var silImgId=null,strikes=new Map(),spamTracker=new Map(),lastReplies=[];");
   ln("var SHOUTOUT_ON=true,shoutTimer=null;");
   ln("async function delPrev(map,cid){var mid=map.get(cid);if(mid){try{await bot.telegram.deleteMessage(cid,mid);}catch(_){}map.delete(cid);}}");
-  ln("async function sendWithTracker(map,cid,cap,extra){await delPrev(map,cid);extra=extra||{};if(IMG_BUF){try{var m=await bot.telegram.sendPhoto(cid,{source:IMG_BUF},Object.assign({caption:cap,parse_mode:'HTML'},extra));map.set(cid,m.message_id);return m;}catch(e){IMG_BUF=null;}}var m2=await bot.telegram.sendMessage(cid,cap,Object.assign({parse_mode:'HTML'},extra));map.set(cid,m2.message_id);return m2;}");
+  ln("async function sendWithTracker(map,cid,cap,extra){await delPrev(map,cid);extra=extra||{};if(IMG_BUF){try{var m=await bot.telegram.sendPhoto(cid,{source:IMG_BUF},Object.assign({caption:cap,parse_mode:'HTML'},extra));map.set(cid,m.message_id);return m;}catch(e){console.log('Photo send failed:',e.message);}}var m2=await bot.telegram.sendMessage(cid,cap,Object.assign({parse_mode:'HTML'},extra));map.set(cid,m2.message_id);return m2;}");
   ln("async function sendImg(cid,cap,extra){return sendWithTracker(shillMsg,cid,cap,extra);}");
   ln("function autoDel(cid,mid,ms){setTimeout(function(){try{bot.telegram.deleteMessage(cid,mid);}catch(_){}},ms);}");
   ln("async function isAdmin(ctx,uid){var t=ctx.chat&&ctx.chat.type;if(t!=='group'&&t!=='supergroup')return false;try{var m=await ctx.telegram.getChatMember(ctx.chat.id,uid);return m.status==='administrator'||m.status==='creator';}catch(_){return false;}}");
@@ -1668,8 +1681,7 @@ function genFull(d,ci){
   ln("async function fireSilence(){if(!groupChatId)return resetSil();");
   ln("  try{");
   ln("    // Delete previous silence breaker first");
-  ln("    if(silImgId){try{await bot.telegram.deleteMessage(groupChatId,silImgId);}catch(_){}silImgId=null;}");
-  ln("    try{await bot.telegram.unpinChatMessage(groupChatId);}catch(_){}") ;
+  ln("    // Previous silence breaker stays  new one adds below it naturally");
   ln("    var p=SIL_ANG[silIdx%SIL_ANG.length];silIdx++;");
   ln("    var cap=await smartAsk(p);");
   ln("    if(cap&&cap!=='IGNORE'){");
@@ -1679,7 +1691,7 @@ function genFull(d,ci){
   ln("      if(!silM)silM=await bot.telegram.sendMessage(groupChatId,cap,{parse_mode:'HTML'});");
   ln("      silImgId=silM.message_id;");
   ln("      // Pin and notify all");
-  ln("      try{await bot.telegram.pinChatMessage(groupChatId,silImgId,{disable_notification:false});}catch(_){}") ;
+  
   ln("    }");
   ln("  }catch(e){console.log('Silence breaker error:',e.message);}");
   ln("  resetSil();");
