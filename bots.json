@@ -60,7 +60,7 @@
     }
   },
   {
-    "ticker": "",
+    "ticker": "$ACRT",
     "chain": "bsc",
     "mode": "full",
     "repoName": "-bot-rp74",
@@ -77,7 +77,7 @@
       "silenceBreaker": "3600000",
       "stage": "live",
       "name": "APE CARTEL",
-      "ticker": "",
+      "ticker": "$ACRT",
       "ca": "0xF730Eb411F298cc146dA5B81d2f0C6D1FEe71AA6",
       "twitter": "https://x.com/ApeCartel_bsc",
       "narrative": "🦍 APE CARTEL ($ACRT) 🦍\n\nAPE CARTEL isn’t just another token… it’s a movement.\n\nBuilt for dominance. Powered by pure degen ambition. This is where real players step in and take over.\n\nThe apes are loading. Bags are stacking.\nMission is simple: TOTAL TAKEOVER 🚀\n\nFrom low cap to breakout levels, $ACRT is positioned to send hard and leave doubters behind.\n\nNo fear. No limits. Just raw moon energy 🌕🔥\nAPE CARTEL BUY OR WATCH FROM THE SIDELINES. 🦍🔥",
