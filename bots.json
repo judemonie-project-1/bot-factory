@@ -97,7 +97,7 @@
     "builtAt": 1775861803630
   },
   {
-    "ticker": "",
+    "ticker": "$ACRT",
     "chain": "bsc",
     "mode": "full",
     "repoName": "-bot-a4e0",
@@ -114,7 +114,7 @@
       "silenceBreaker": "1800000",
       "stage": "live",
       "name": "APE CARTEL",
-      "ticker": "",
+      "ticker": "$ACRT",
       "ca": "0xF730Eb411F298cc146dA5B81d2f0C6D1FEe71AA6",
       "twitter": "",
       "narrative": "",
