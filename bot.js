@@ -491,7 +491,8 @@ bot.action(/^epk_(\d+)$/,async function(ctx){
     [{text:'TG Group: '+(d.tg?'set':'not set'),callback_data:'ef_tg_'+i}],
     [{text:'Silence Breaker: '+({'0':'Off','600000':'10 min','1800000':'30 min','3600000':'1 hr','7200000':'2 hr','10800000':'3 hr'}[String(d.silenceBreaker||'3600000')]||'1 hr'),callback_data:'ef_sil_'+i}],
     [{text:'Narrative',callback_data:'ef_narrative_'+i}],
-    [{text:'CA: '+((d.ca||'').slice(0,8)+'...'),callback_data:'ef_ca_'+i}],
+    [{text:'Ticker: '+(d.ticker&&d.ticker!=='$TOKEN'?d.ticker:'NOT SET'),callback_data:'ef_ticker_'+i}],
+    [{text:'CA: '+((d.ca||'not set').slice(0,10)+'...'),callback_data:'ef_ca_'+i}],
         [{text:'Supply',callback_data:'ef_supply_'+i}],
     [{text:'Tax (buy/sell)',callback_data:'ef_tax_'+i}],
     [{text:'Max wallet %',callback_data:'ef_maxwallet_'+i}],
@@ -504,10 +505,10 @@ bot.action(/^epk_(\d+)$/,async function(ctx){
   ]}});
 });
 
-bot.action(/^ef_(ca|twitter|tg|narrative|supply|tax|maxwallet)_(\d+)$/,async function(ctx){
+bot.action(/^ef_(ticker|ca|twitter|tg|narrative|supply|tax|maxwallet)_(\d+)$/,async function(ctx){
   await ctx.answerCbQuery();var field=ctx.match[1],i=parseInt(ctx.match[2]),uid=String(ctx.from.id);
   editSessions[uid]={idx:i,field:field};
-  var asks={ca:'New contract address (CA):',twitter:'New Twitter/X link:',tg:'New Telegram group link (e.g. https://t.me/yourgroup):',narrative:'New narrative (1-2 sentences):',supply:'New supply (e.g. 1B or 1,000,000,000):',tax:'New tax as buy/sell (e.g. 5/5):',maxwallet:'New max wallet % (e.g. 4.9 or - to remove):'};
+  var asks={ticker:'New ticker symbol (e.g. $MPC  include the $):',ca:'New contract address (CA):',twitter:'New Twitter/X link:',tg:'New Telegram group link (e.g. https://t.me/yourgroup):',narrative:'New narrative (1-2 sentences):',supply:'New supply (e.g. 1B or 1,000,000,000):',tax:'New tax as buy/sell (e.g. 5/5):',maxwallet:'New max wallet % (e.g. 4.9 or - to remove):'};
   try{await ctx.deleteMessage();}catch(_){}
   return ctx.reply(E.pencil+' '+asks[field]);
 });
@@ -815,7 +816,7 @@ bot.command('fixgroq',async function(ctx){
 bot.command('rebuild',async function(ctx){
   var el=registry.filter(function(b){return b.repoName;});
   if(!el.length)return ctx.reply(E.wrench+' No bots registered yet. Use /build.');
-  var kb=el.map(function(b){var i=registry.indexOf(b);return[{text:(b.ticker||b.d&&b.d.ticker||b.d&&b.d.name||'Bot '+(i+1))+' ('+(b.chain||'bsc').toUpperCase()+')',callback_data:'rbd_'+i}];});
+  var kb=el.map(function(b){var i=registry.indexOf(b);var tk=b.ticker||b.d&&b.d.ticker||b.d&&b.d.name||'Bot '+(i+1);var warn=(!b.ticker||b.ticker==='$TOKEN')?'  \u26A0\uFE0F':'';return[{text:tk+' ('+(b.chain||'bsc').toUpperCase()+')'+warn,callback_data:'rbd_'+i}];});
   return ctx.reply(E.gear+' <b>Full rebuild from stored data:</b>\n<i>Use after changing personality, CTO mode, silence breaker etc via /edit</i>',{parse_mode:'HTML',reply_markup:{inline_keyboard:kb}});
 });
 bot.action(/^rbd_(\d+)$/,async function(ctx){
@@ -948,6 +949,7 @@ bot.on('text',async function(ctx){
     var b=registry[es.idx];if(!b){delete editSessions[uid];return;}
     try{await ctx.deleteMessage();}catch(_){}
     b.d=b.d||{};
+    if(es.field==='ticker'){var tk=text.trim();if(!tk.startsWith('$'))tk='$'+tk;b.d.ticker=tk.toUpperCase();b.ticker=b.d.ticker;}
     if(es.field==='ca')        b.d.ca=text.trim();
         if(es.field==='twitter')  b.d.twitter=text;
     if(es.field==='tg')       b.d.tg=text.startsWith('http')||text.startsWith('@')?text:'';
