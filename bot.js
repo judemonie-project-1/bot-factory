@@ -168,7 +168,7 @@ function deobfuscateToken(o){
   return o._t||'';
 }
 function saveRegistry(){
-  if(!GH_OWNER)return;
+  if(!GH_OWNER||!registry.length)return; // Never overwrite with empty
   var safe=registry.map(function(b){
     var c=JSON.parse(JSON.stringify(b));
     if(c.d&&c.d.botToken&&typeof c.d.botToken==='string')c.d.botToken=obfuscateToken(c.d.botToken);
