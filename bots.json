@@ -9,7 +9,10 @@
     "status": "active",
     "builtAt": 1775604179857,
     "d": {
-      "botToken": {"_a":"8583509833","_b":"AAEJ6CBilRT3fonYnMsQI9Z-J2vc2t168Tk"},
+      "botToken": {
+        "_a": "8583509833",
+        "_b": "AAEJ6CBilRT3fonYnMsQI9Z-J2vc2t168Tk"
+      },
       "chain": "bsc",
       "mode": "full",
       "status": "cto",
@@ -32,8 +35,18 @@
       "revealCmd": "",
       "hideCmd": ""
     },
-    "state": {"caUnlocked": true, "groupChatId": null, "shoutoutOn": true},
-    "analytics": {"messages": 0, "shills": 0, "caReqs": 0, "priceReqs": 0, "joinedAt": 1775604179857}
+    "state": {
+      "caUnlocked": true,
+      "groupChatId": null,
+      "shoutoutOn": true
+    },
+    "analytics": {
+      "messages": 0,
+      "shills": 0,
+      "caReqs": 0,
+      "priceReqs": 0,
+      "joinedAt": 1775604179857
+    }
   },
   {
     "id": "-bot-a4e0",
@@ -45,7 +58,10 @@
     "status": "active",
     "builtAt": 1776204678002,
     "d": {
-      "botToken": {"_a":"8481396136","_b":"AAHmm4b02YbT7U0V0c-I_Ixk5Z90IqBAPhg"},
+      "botToken": {
+        "_a": "8481396136",
+        "_b": "AAHmm4b02YbT7U0V0c-I_Ixk5Z90IqBAPhg"
+      },
       "chain": "bsc",
       "mode": "full",
       "status": "launch",
@@ -68,7 +84,17 @@
       "revealCmd": "",
       "hideCmd": ""
     },
-    "state": {"caUnlocked": true, "groupChatId": null, "shoutoutOn": true},
-    "analytics": {"messages": 0, "shills": 0, "caReqs": 0, "priceReqs": 0, "joinedAt": 1776204678002}
+    "state": {
+      "caUnlocked": true,
+      "groupChatId": null,
+      "shoutoutOn": true
+    },
+    "analytics": {
+      "messages": 0,
+      "shills": 0,
+      "caReqs": 0,
+      "priceReqs": 0,
+      "joinedAt": 1776204678002
+    }
   }
 ]
