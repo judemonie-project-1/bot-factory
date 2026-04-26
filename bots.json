@@ -94,5 +94,55 @@
       "priceReqs": 0,
       "joinedAt": 1776204678002
     }
+  },
+  {
+    "id": "httpsxcomcakepnutcto-bot-j7i8",
+    "ticker": "$HTTPS://X.COM/CAKEPNUT_CTO",
+    "chain": "bsc",
+    "mode": "full",
+    "repoName": "httpsxcomcakepnutcto-bot-j7i8",
+    "ghOwner": "judemonie-project-1",
+    "d": {
+      "chain": "bsc",
+      "mode": "full",
+      "status": "cto",
+      "guardType": "standard",
+      "personality": "community",
+      "responseMode": "conversational",
+      "silenceBreaker": "3600000",
+      "stage": "live",
+      "name": "CakePnut",
+      "ticker": "$HTTPS://X.COM/CAKEPNUT_CTO",
+      "ca": "0xD60706E7C7179597FA0B1C81deb4AA2554D38E61",
+      "twitter": "https://x.com/Cakepnut_CTO",
+      "narrative": "🍰🥜 CakePnut_CTO is here to sweeten the space 🚀\n\nFrom a simple idea to a buzzing community movement, CakePnut blends the fun of memes with real on-chain energy. Small cake… but BIG potential. This is where nutty vibes meet serious growth.",
+      "supply": "N/A",
+      "buyTax": "0",
+      "sellTax": "0",
+      "maxWalletPct": "",
+      "maxWalletTokens": "",
+      "renounced": "",
+      "locked": "BURNED",
+      "revealCmd": "siht3qg7",
+      "hideCmd": "kzz0grxw",
+      "botToken": "8328676879:AAFynZ0pKB9rLZg6__lDWQMybTWLPqEELRE",
+      "renderUrl": "",
+      "repoName": "",
+      "tg": "https://t.me/CAKEPNUT"
+    },
+    "state": {
+      "caUnlocked": true,
+      "groupChatId": null,
+      "shoutoutOn": true
+    },
+    "analytics": {
+      "messages": 0,
+      "shills": 0,
+      "caReqs": 0,
+      "priceReqs": 0,
+      "joinedAt": 1777212220021
+    },
+    "status": "active",
+    "builtAt": 1777212220021
   }
 ]
