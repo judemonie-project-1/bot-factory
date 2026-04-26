@@ -57,7 +57,8 @@
       "stage": "live",
       "tg": "https://t.me/mpccto",
       "silenceBreaker": "600000"
-    }
+    },
+    "status": "active"
   },
   {
     "ticker": "$ACRT",
