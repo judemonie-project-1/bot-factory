@@ -423,6 +423,44 @@ bot.command('refresh',async function(ctx){
     registry.map(function(b,i){return (i+1)+'. '+(b.ticker||'Bot '+(i+1))+' ('+b.repoName+')';}).join('\n')||'No bots found.');
 });
 
+// Build success quick actions
+bot.action('show_bots',async function(ctx){
+  await ctx.answerCbQuery();
+  return ctx.reply(E.list+' <b>Your Bots</b>\n\n'+
+    registry.map(function(b,i){return (i+1)+'. '+E.rocket+' <b>'+(b.ticker||'Bot '+(i+1))+'</b> ('+(b.chain||'bsc').toUpperCase()+')'+'\n'+'   '+(b.mode==='guard'?E.shield+' Guard':E.robot+' Full')+' \u2022 '+(b.d&&b.d.status==='cto'?'CTO':'Active dev')+'\n'+'   '+E.link+' '+b.url;}).join('\n\n'),
+    {parse_mode:'HTML',disable_web_page_preview:true});
+});
+bot.action('build_another',async function(ctx){
+  await ctx.answerCbQuery();
+  return ctx.reply(E.rocket+' Starting new build...\n\nSend /build to begin.',{parse_mode:'HTML'});
+});
+bot.action(/^show_edit_(.+)$/,async function(ctx){
+  await ctx.answerCbQuery();
+  var repoName2=ctx.match[1];
+  var idx2=registry.findIndex(function(b){return b.repoName===repoName2;});
+  if(idx2<0)return ctx.reply('Bot not found. Use /edit');
+  // Simulate /edit selection
+  var uid=String(ctx.from.id);
+  delete sessions[uid];
+  editSessions[uid]={idx:idx2};
+  var b=registry[idx2],d=b.d||{};
+  return ctx.reply(E.wrench+' Edit <b>'+b.ticker+'</b>\nWhat to change?',{
+    parse_mode:'HTML',
+    reply_markup:{inline_keyboard:[
+      [{text:'\u{1F3AF} Quick Setup',callback_data:'ef_setup_'+idx2}],
+      [{text:'Ticker: '+(d.ticker||'not set'),callback_data:'ef_ticker_'+idx2},{text:'CA: '+((d.ca||'not set').slice(0,8)+'...'),callback_data:'ef_ca_'+idx2}],
+      [{text:'Twitter/X: '+(d.twitter?'set':'not set'),callback_data:'ef_twitter_'+idx2},{text:'TG: '+(d.tg?'set':'not set'),callback_data:'ef_tg_'+idx2}],
+      [{text:'Narrative',callback_data:'ef_narrative_'+idx2},{text:'Supply',callback_data:'ef_supply_'+idx2}],
+      [{text:'Tax',callback_data:'ef_tax_'+idx2},{text:'Max wallet',callback_data:'ef_maxwallet_'+idx2}],
+      [{text:'Renounced: '+(d.renounced||'?'),callback_data:'ef_ren_'+idx2}],
+      [{text:(d.locked==='LOCKED'?'\u2705':'')+' LOCKED',callback_data:'eflp_LOCKED_'+idx2},{text:(d.locked==='BURNED'?'\u2705':'')+' BURNED',callback_data:'eflp_BURNED_'+idx2},{text:((!d.locked||d.locked==='NOT LOCKED')?'\u2705':'')+' NOT LOCKED',callback_data:'eflp_NOTLOCKED_'+idx2}],
+      [{text:'Bot image',callback_data:'ef_image_'+idx2},{text:'Silence Breaker',callback_data:'ef_sil_'+idx2}],
+      [{text:'Stage',callback_data:'ef_stage_'+idx2},{text:'CTO/Launch',callback_data:'ef_cto_'+idx2}],
+      [{text:E.xmark+' Cancel',callback_data:'ecancel'}],
+    ]}
+  });
+});
+
 bot.command('cancel',function(ctx){var uid=String(ctx.from.id);delete sessions[uid];delete editSessions[uid];return ctx.reply(E.xmark+' Cancelled.');});
 bot.command('addgroq',async function(ctx){var uid=String(ctx.from.id);groqSessions[uid]=true;try{await ctx.deleteMessage();}catch(_){}return ctx.reply(E.gear+' Send your AI API key and it will be added:');});
 
@@ -633,10 +671,13 @@ bot.action(/^epk_(\d+)$/,async function(ctx){
     [{text:'Tax (buy/sell)',callback_data:'ef_tax_'+i}],
     [{text:'Max wallet %',callback_data:'ef_maxwallet_'+i}],
     [{text:'Renounced: '+(d.renounced||'NOT RENOUNCED'),callback_data:'ef_ren_'+i}],
-    [{text:'LP: '+(d.locked||'NOT LOCKED')+' \u2014 tap to change',callback_data:'ef_lp_'+i}],
+    [{text:(d.locked==='LOCKED'?'\u2705':'')+' LOCKED',callback_data:'eflp_LOCKED_'+i},
+     {text:(d.locked==='BURNED'?'\u2705':'')+' BURNED',callback_data:'eflp_BURNED_'+i},
+     {text:((!d.locked||d.locked==='NOT LOCKED')?'\u2705':'')+' NOT LOCKED',callback_data:'eflp_NOTLOCKED_'+i}],
     [{text:'Bot image',callback_data:'ef_image_'+i}],
     [{text:'\u{1F7E2} Stage: '+({'live':'\u{1F7E2} Live','prelaunch':'\u{1F7E1} Pre-launch','noCA':'\u26AA No CA yet'}[(b.d&&b.d.stage)||'live']||'Live')+' (tap to change)',callback_data:'ef_stage_'+i}],
         [{text:(d.status==='cto'?E.rocket+' Switch to Launch':E.shield+' Switch to CTO'),callback_data:'ef_cto_'+i}],
+    [{text:E.rocket+' Quick setup (fill missing fields)',callback_data:'ef_setup_'+i}],
     [{text:E.xmark+' Cancel',callback_data:'ecancel'}],
   ]}});
 });
@@ -648,6 +689,35 @@ bot.action(/^ef_(ticker|ca|twitter|tg|narrative|supply|tax|maxwallet)_(\d+)$/,as
   try{await ctx.deleteMessage();}catch(_){}
   return ctx.reply(E.pencil+' '+asks[field]);
 });
+// Quick setup  fills empty fields one by one
+bot.action(/^ef_setup_(\d+)$/,async function(ctx){
+  await ctx.answerCbQuery();
+  var i=parseInt(ctx.match[1]),b=registry[i];if(!b)return;
+  var uid=String(ctx.from.id);
+  var d=b.d||{};
+  // Find first missing required field
+  var missing=[];
+  if(!d.ticker||d.ticker==='$TOKEN')missing.push('ticker');
+  if(!d.ca)missing.push('ca');
+  if(!d.twitter)missing.push('twitter');
+  if(!d.tg)missing.push('tg');
+  if(!d.narrative)missing.push('narrative');
+  if(!d.supply||d.supply==='N/A')missing.push('supply');
+  if(!missing.length){try{await ctx.deleteMessage();}catch(_){}return ctx.reply(E.check+' All fields are filled! Use /edit to make changes.');}
+  var field=missing[0];
+  var asks={ticker:'Ticker symbol (e.g. $NRISE  include the $):',ca:'Contract address (CA):',
+    twitter:'Twitter/X link:',tg:'Telegram group link:',
+    narrative:'Short narrative (1-2 sentences about the project):',
+    supply:'Total supply (e.g. 1,000,000,000):'};
+  editSessions[uid]={idx:i,field:field,setupMode:true,setupQueue:missing};
+  try{await ctx.deleteMessage();}catch(_){}
+  return ctx.reply(
+    E.pencil+' <b>Quick Setup ('+missing.length+' fields missing)</b>\n\n'+
+    'Field '+1+'/'+missing.length+': <b>'+field.toUpperCase()+'</b>\n\n'+asks[field]+'\n\n<i>Type your answer and send</i>',
+    {parse_mode:'HTML'}
+  );
+});
+
 bot.action(/^ef_image_(\d+)$/,async function(ctx){
   await ctx.answerCbQuery();var i=parseInt(ctx.match[1]),uid=String(ctx.from.id);
   editSessions[uid]={idx:i,field:'image'};try{await ctx.deleteMessage();}catch(_){}
@@ -720,11 +790,13 @@ bot.action(/^ef_ren_(\d+)$/,async function(ctx){
   try{await ctx.deleteMessage();}catch(_){}
   await pushAndSave(ctx,b,'renounced toggled to '+b.d.renounced);
 });
-bot.action(/^ef_lp_(\d+)$/,async function(ctx){
-  await ctx.answerCbQuery();var i=parseInt(ctx.match[1]),b=registry[i];if(!b)return;
-  b.d=b.d||{};var _lps=['LOCKED','BURNED','NOT LOCKED'];var _li=_lps.indexOf(b.d.locked||'LOCKED');b.d.locked=_lps[(_li+1)%3];
+bot.action(/^eflp_([A-Z]+)_(\d+)$/,async function(ctx){
+  await ctx.answerCbQuery();
+  var val=ctx.match[1]==='NOTLOCKED'?'NOT LOCKED':ctx.match[1];
+  var i=parseInt(ctx.match[2]),b=registry[i];if(!b)return;
+  b.d=b.d||{};b.d.locked=val;
   try{await ctx.deleteMessage();}catch(_){}
-  await pushAndSave(ctx,b,'LP toggled to '+b.d.locked);
+  await pushAndSave(ctx,b,'LP set to '+val);
 });
 bot.action(/^ef_cto_(\d+)$/,async function(ctx){
   await ctx.answerCbQuery();var i=parseInt(ctx.match[1]),b=registry[i];if(!b)return;
@@ -752,7 +824,10 @@ async function pushAndSave(ctx,b,what){
     return ctx.reply(
       E.check+' <b>'+b.ticker+'</b> \u2014 '+what+'!\n\n'
       +E.clock+' Deploying in ~8s. Wait for this before next edit.',
-      {parse_mode:'HTML'}
+      {parse_mode:'HTML', reply_markup:{inline_keyboard:[
+        [{text:E.chart+' View bots',callback_data:'show_bots'},{text:E.pencil+' Edit this bot',callback_data:'show_edit_'+repoName}],
+        [{text:E.rocket+' Build another',callback_data:'build_another'}],
+      ]}}
     );
   }catch(e){return ctx.reply(E.xmark+' Failed: '+e.message);}
 }
@@ -1099,6 +1174,25 @@ bot.on('text',async function(ctx){
     if(es.field==='supply')   b.d.supply=text;
     if(es.field==='maxwallet')b.d.maxWalletPct=(text==='-'?'':text);
     if(es.field==='tax'){var tx=text.split('/');b.d.buyTax=(tx[0]||'5').trim();b.d.sellTax=(tx[1]||tx[0]||'5').trim();}
+    // Setup mode  continue to next missing field
+    if(es.setupMode&&es.setupQueue&&es.setupQueue.length>1){
+      es.setupQueue.shift(); // remove current field
+      var nextField=es.setupQueue[0];
+      var asks2={ticker:'Ticker symbol (e.g. $NRISE):',ca:'Contract address (CA):',
+        twitter:'Twitter/X link:',tg:'Telegram group link:',
+        narrative:'Short narrative (1-2 sentences):',supply:'Total supply:'};
+      var done=Object.keys(b.d).filter(function(k){return asks2[k]&&b.d[k];}).length;
+      saveRegistry();
+      var editEntry3=registry.find(function(x){return x.repoName===b.repoName;});
+      if(editEntry3)syncToBotsJson(editEntry3).catch(function(){});
+      editSessions[uid]={idx:es.idx,field:nextField,setupMode:true,setupQueue:es.setupQueue};
+      try{await ctx.deleteMessage();}catch(_){}
+      return ctx.reply(
+        E.check+' Saved! Now '+es.setupQueue.length+' left.\n\n'+
+        'Next: <b>'+nextField.toUpperCase()+'</b>\n\n'+asks2[nextField]+'\n\n<i>Type your answer and send</i>',
+        {parse_mode:'HTML'}
+      );
+    }
     await pushAndSave(ctx,b,es.field+' updated');
     delete editSessions[uid];
     return;
@@ -1295,8 +1389,8 @@ async function doBuild(ctx,s,uid){
     await ctx.reply(
       E.party+' <b>'+d.ticker+' is live!</b>\n\n'+
       E.check+' Bot is registered and starting up.\n'+
-      E.check+' Add the bot to your group and make it admin.\n'+
-      E.check+' Price, chart, shill, moderation and AI all active.\n\n'+
+      E.check+' Add it to your group and make it admin.\n'+
+      E.check+' AI, moderation, shill and price all active.\n\n'+
       (d.stage==='prelaunch'&&d.revealCmd?E.warn+' <b>Secret commands:</b>\n'+'Reveal CA: <code>/'+d.revealCmd+'</code>\nHide CA: <code>/'+d.hideCmd+'</code>\n\n':'')+
       '<b>Next steps:</b>\n'+
       '1. Wait 3-5 min for bot to build\n'+
