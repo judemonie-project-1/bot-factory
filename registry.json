@@ -139,7 +139,7 @@
       "buyTax": "5",
       "sellTax": "5",
       "maxWalletPct": "",
-      "renounced": "RENOUNCED",
+      "renounced": "NOT RENOUNCED",
       "locked": "LOCKED",
       "silenceBreaker": "3600000",
       "revealCmd": "",
