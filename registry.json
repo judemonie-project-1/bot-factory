@@ -1,1 +1,95 @@
-[]
+[
+  {
+    "id": "mpc-bot-31hk",
+    "ticker": "$Mpc",
+    "chain": "bsc",
+    "mode": "full",
+    "repoName": "mpc-bot-31hk",
+    "ghOwner": "judemonie-project-1",
+    "status": "active",
+    "builtAt": 1775604179857,
+    "d": {
+      "botToken": {"_a":"8583509833","_b":"AAEJ6CBilRT3fonYnMsQI9Z-J2vc2t168Tk"},
+      "chain": "bsc","mode": "full","status": "cto","stage": "live",
+      "personality": "hype","responseMode": "conversational",
+      "name": "Mubarak pfp on chain","ticker": "$Mpc",
+      "ca": "0x5794FF15f6bd01Eaa25DB48353886810467B0D1D",
+      "twitter": "https://x.com/mpc_ctolead","tg": "https://t.me/mpccto",
+      "narrative": "Mubarak PFP. Where Middle Eastern legend meets pixel-powered meme energy. Born from culture, rising with community, and blessed with barakah.",
+      "supply": "1,000,000,000","buyTax": "0","sellTax": "0",
+      "maxWalletPct": "","renounced": "RENOUNCED","locked": "BURNED",
+      "silenceBreaker": "600000","revealCmd": "","hideCmd": ""
+    },
+    "state": {"caUnlocked": true,"groupChatId": null,"shoutoutOn": true},
+    "analytics": {"messages": 0,"shills": 0,"caReqs": 0,"priceReqs": 0,"joinedAt": 1775604179857}
+  },
+  {
+    "id": "-bot-a4e0",
+    "ticker": "$ACRT",
+    "chain": "bsc",
+    "mode": "full",
+    "repoName": "-bot-a4e0",
+    "ghOwner": "judemonie-project-1",
+    "status": "active",
+    "builtAt": 1776204678002,
+    "d": {
+      "botToken": {"_a":"8481396136","_b":"AAHmm4b02YbT7U0V0c-I_Ixk5Z90IqBAPhg"},
+      "chain": "bsc","mode": "full","status": "launch","stage": "live",
+      "personality": "alpha","responseMode": "conversational",
+      "name": "APE CARTEL","ticker": "$ACRT",
+      "ca": "0xF730Eb411F298cc146dA5B81d2f0C6D1FEe71AA6",
+      "twitter": "https://x.com/ApeCartel_bsc","tg": "https://t.me/apecartel_bsc",
+      "narrative": "APE CARTEL is a movement. Built for dominance. Powered by pure degen ambition. Total community takeover.",
+      "supply": "1000000000","buyTax": "5","sellTax": "5",
+      "maxWalletPct": "4.9%","renounced": "RENOUNCED","locked": "LOCKED",
+      "silenceBreaker": "1800000","revealCmd": "","hideCmd": ""
+    },
+    "state": {"caUnlocked": true,"groupChatId": null,"shoutoutOn": true},
+    "analytics": {"messages": 0,"shills": 0,"caReqs": 0,"priceReqs": 0,"joinedAt": 1776204678002}
+  },
+  {
+    "id": "nrise-bot-16y4",
+    "ticker": "$NRISE",
+    "chain": "bsc",
+    "mode": "full",
+    "repoName": "nrise-bot-16y4",
+    "ghOwner": "judemonie-project-1",
+    "status": "active",
+    "builtAt": 1776300000000,
+    "d": {
+      "botToken": {"_a":"8693155027","_b":"AAHucie4XydxKSxyE-ltz16O2uPJ1pvvBlQ"},
+      "chain": "bsc","mode": "full","status": "launch","stage": "live",
+      "personality": "alpha","responseMode": "focused",
+      "name": "NRISE","ticker": "$NRISE",
+      "ca": "","twitter": "","tg": "",
+      "narrative": "","supply": "","buyTax": "?","sellTax": "?",
+      "maxWalletPct": "","renounced": "","locked": "",
+      "silenceBreaker": "3600000","revealCmd": "","hideCmd": ""
+    },
+    "state": {"caUnlocked": true,"groupChatId": null,"shoutoutOn": true},
+    "analytics": {"messages": 0,"shills": 0,"caReqs": 0,"priceReqs": 0,"joinedAt": 1776300000000}
+  },
+  {
+    "id": "httpsxcomcakepnutcto-bot-j7i8",
+    "ticker": "$CAKEPNUT",
+    "chain": "bsc",
+    "mode": "full",
+    "repoName": "httpsxcomcakepnutcto-bot-j7i8",
+    "ghOwner": "judemonie-project-1",
+    "status": "active",
+    "builtAt": 1776400000000,
+    "d": {
+      "botToken": {"_a":"8328676879","_b":"AAFynZ0pKB9rLZg6__lDWQMybTWLPqEELRE"},
+      "chain": "bsc","mode": "full","status": "cto","stage": "live",
+      "personality": "community","responseMode": "conversational",
+      "name": "CakePnut","ticker": "$CAKEPNUT",
+      "ca": "0xD60706E7C7179597FA0B1C81deb4AA2554D38E61",
+      "twitter": "https://x.com/Cakepnut_CTO","tg": "https://t.me/CAKEPNUT",
+      "narrative": "","supply": "","buyTax": "0","sellTax": "0",
+      "maxWalletPct": "","renounced": "","locked": "BURNED",
+      "silenceBreaker": "3600000","revealCmd": "","hideCmd": ""
+    },
+    "state": {"caUnlocked": true,"groupChatId": null,"shoutoutOn": true},
+    "analytics": {"messages": 0,"shills": 0,"caReqs": 0,"priceReqs": 0,"joinedAt": 1776400000000}
+  }
+]
