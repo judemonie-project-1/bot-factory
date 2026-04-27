@@ -51,7 +51,7 @@ var PERS_LABELS={
 var bot=new Telegraf(BOT_TOKEN);
 var app=express();
 app.use(express.json());
-var registry=[],sessions={},editSessions={},groqSessions={},ownerChatIds=new Set();
+var registry=[],registryReady=false,sessions={},editSessions={},groqSessions={},ownerChatIds=new Set();
 
 //  HELPERS 
 function rnd(n){var c='abcdefghijklmnopqrstuvwxyz0123456789',o='';for(var i=0;i<n;i++)o+=c[Math.floor(Math.random()*c.length)];return o;}
