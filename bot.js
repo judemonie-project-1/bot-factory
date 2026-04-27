@@ -168,7 +168,7 @@ function deobfuscateToken(o){
   return o._t||'';
 }
 function saveRegistry(){
-  if(!GH_OWNER||!registry.length)return;
+  if(!GH_OWNER||!registry.length||!registryReady)return;
   try{
     var safe=registry.map(function(b){
       // Only keep known safe fields  never save Buffer or code
@@ -220,6 +220,7 @@ async function loadRegistry(){
         return b;
       });
       console.log('Registry:',registry.length,'bots');
+    registryReady=true;
     }}
   }catch(e){console.log('Registry:',e.message);}
 }
@@ -735,8 +736,12 @@ async function pushAndSave(ctx,b,what){
       await githubUpdate(b.ghOwner,b.repoName,'bot.js',Buffer.from(botCode));
     }
     saveRegistry();
-    await signalReload();
-    return ctx.reply(E.check+' <b>'+b.ticker+'</b> \u2014 '+what+'!\nBot updated and restarting now.',{parse_mode:'HTML'});
+    scheduleReload(ctx);
+    return ctx.reply(
+      E.check+' <b>'+b.ticker+'</b> \u2014 '+what+'!\n\n'
+      +E.clock+' Deploying in ~8s. Wait for this before next edit.',
+      {parse_mode:'HTML'}
+    );
   }catch(e){return ctx.reply(E.xmark+' Failed: '+e.message);}
 }
 
@@ -1353,6 +1358,35 @@ async function githubUpdate(owner,repo,file,content){
 }
 
 //  RENDER API 
+var reloadTimer=null;
+var pendingReloadCtx=null;
+function scheduleReload(ctx){
+  if(ctx)pendingReloadCtx=ctx;
+  if(reloadTimer)clearTimeout(reloadTimer);
+  reloadTimer=setTimeout(async function(){
+    reloadTimer=null;
+    await signalReload();
+    // Wait for supervisor to reload then confirm
+    if(pendingReloadCtx&&SUPERVISOR_URL){
+      var rCtx=pendingReloadCtx;
+      pendingReloadCtx=null;
+      setTimeout(async function(){
+        try{
+          var hr=await fetch(SUPERVISOR_URL+'/health');
+          var hd=await hr.json();
+          var online=hd.details?hd.details.filter(function(b){return b.status==='online';}).length:0;
+          await rCtx.reply(
+            E.check+' <b>All done!</b>\n\n'
+            +E.rocket+' Bots online: '+online+'/'+hd.bots+'\n'
+            +E.check+' Ready for next edit.',
+            {parse_mode:'HTML'}
+          );
+        }catch(_){}
+      },20000); // Check after 20s
+    }
+  },8000);
+}
+
 async function signalReload(){
   if(!SUPERVISOR_URL){console.log('No SUPERVISOR_URL set');return;}
   try{
