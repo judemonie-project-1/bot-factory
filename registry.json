@@ -126,7 +126,7 @@
       "chain": "bsc",
       "mode": "full",
       "status": "launch",
-      "stage": "prelaunch",
+      "stage": "live",
       "personality": "alpha",
       "responseMode": "focused",
       "name": "NRISE",
