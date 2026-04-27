@@ -191,7 +191,7 @@ function saveRegistry(){
     });
     var json=JSON.stringify(safe,null,2);
     if(json.length>500000){console.error('saveRegistry: output too large, aborting');return;}
-    githubUpdate(GH_OWNER,'bot-factory','bots.json',Buffer.from(json)).catch(function(e){console.error('saveRegistry:',e.message);});
+    githubUpdate(GH_OWNER,'bot-factory','registry.json',Buffer.from(json)).catch(function(e){console.error('saveRegistry:',e.message);});
   }catch(e){console.error('saveRegistry error:',e.message);}
 }
 async function loadRegistry(){
@@ -211,7 +211,7 @@ async function loadRegistry(){
   }
   if(!GH_OWNER){console.log('loadRegistry: GH_OWNER still not set');return;}
   try{
-    var r=await fetch('https://api.github.com/repos/'+GH_OWNER+'/bot-factory/contents/bots.json',{headers:{'Authorization':'token '+GITHUB_TOKEN,'Accept':'application/vnd.github.v3+json'}});
+    var r=await fetch('https://api.github.com/repos/'+GH_OWNER+'/bot-factory/contents/registry.json',{headers:{'Authorization':'token '+GITHUB_TOKEN,'Accept':'application/vnd.github.v3+json'}});
     if(r.ok){var d=await r.json();if(d.content){
       var raw=JSON.parse(Buffer.from(d.content,'base64').toString('utf8'));
       registry=raw.map(function(b){
@@ -746,6 +746,8 @@ async function pushAndSave(ctx,b,what){
       await githubUpdate(b.ghOwner,b.repoName,'bot.js',Buffer.from(botCode));
     }
     saveRegistry();
+    var editEntry2=registry.find(function(x){return x.repoName===b.repoName;});
+    if(editEntry2)syncToBotsJson(editEntry2).catch(function(){});
     scheduleReload(ctx);
     return ctx.reply(
       E.check+' <b>'+b.ticker+'</b> \u2014 '+what+'!\n\n'
@@ -1278,7 +1280,8 @@ async function doBuild(ctx,s,uid){
         status:'active',builtAt:Date.now()};
       if(existing>=0){registry[existing]=entry;}else{registry.push(entry);}
       saveRegistry();
-      await sleep(3000);
+      await syncToBotsJson(entry);
+      await sleep(2000);
       await signalReload();
     }},
   ];
@@ -1395,6 +1398,41 @@ function scheduleReload(ctx){
       },20000); // Check after 20s
     }
   },8000);
+}
+
+// Sync one bot entry to bots.json (supervisor's file) additively
+async function syncToBotsJson(entry){
+  if(!GH_OWNER||!entry)return;
+  try{
+    // Read current bots.json
+    var r=await fetch('https://api.github.com/repos/'+GH_OWNER+'/bot-factory/contents/bots.json',{headers:{'Authorization':'token '+GITHUB_TOKEN,'Accept':'application/vnd.github.v3+json'}});
+    var current=[];
+    var sha='';
+    if(r.ok){var d=await r.json();sha=d.sha||'';if(d.content){try{current=JSON.parse(Buffer.from(d.content.replace(/\s/g,''),'base64').toString());}catch(_){}}}
+    // Add or update this entry
+    var idx2=current.findIndex(function(b){return b.id===entry.id||b.repoName===entry.repoName;});
+    if(idx2>=0)current[idx2]=entry;else current.push(entry);
+    // Write back  only safe fields
+    var safe=current.map(function(b){return{
+      id:b.id||b.repoName,ticker:b.ticker,chain:b.chain,mode:b.mode,
+      repoName:b.repoName,ghOwner:b.ghOwner,status:b.status,builtAt:b.builtAt,
+      state:b.state||{},analytics:b.analytics||{},
+      d:b.d?{botToken:b.d.botToken,chain:b.d.chain,mode:b.d.mode,status:b.d.status,
+        stage:b.d.stage,personality:b.d.personality,responseMode:b.d.responseMode,
+        name:b.d.name,ticker:b.d.ticker,ca:b.d.ca,twitter:b.d.twitter,tg:b.d.tg,
+        website:b.d.website,narrative:b.d.narrative,supply:b.d.supply,
+        buyTax:b.d.buyTax,sellTax:b.d.sellTax,maxWalletPct:b.d.maxWalletPct,
+        renounced:b.d.renounced,locked:b.d.locked,silenceBreaker:b.d.silenceBreaker,
+        revealCmd:b.d.revealCmd,hideCmd:b.d.hideCmd
+      }:{}
+    };});
+    // Re-obfuscate tokens
+    safe.forEach(function(b){if(b.d&&b.d.botToken&&typeof b.d.botToken==='string')b.d.botToken=obfuscateToken(b.d.botToken);});
+    var json=JSON.stringify(safe,null,2);
+    if(json.length>200000){console.error('syncToBotsJson: too large, abort');return;}
+    await githubUpdate(GH_OWNER,'bot-factory','bots.json',Buffer.from(json));
+    console.log('bots.json synced:',safe.length,'bots');
+  }catch(e){console.error('syncToBotsJson:',e.message);}
 }
 
 async function signalReload(){
