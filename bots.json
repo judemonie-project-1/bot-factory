@@ -125,7 +125,7 @@
       "supply": "",
       "buyTax": "5",
       "sellTax": "5",
-      "maxWalletPct": "",
+      "maxWalletPct": "2%",
       "renounced": "",
       "locked": "",
       "silenceBreaker": "3600000",
