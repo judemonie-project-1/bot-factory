@@ -168,13 +168,31 @@ function deobfuscateToken(o){
   return o._t||'';
 }
 function saveRegistry(){
-  if(!GH_OWNER||!registry.length)return; // Never overwrite with empty
-  var safe=registry.map(function(b){
-    var c=JSON.parse(JSON.stringify(b));
-    if(c.d&&c.d.botToken&&typeof c.d.botToken==='string')c.d.botToken=obfuscateToken(c.d.botToken);
-    return c;
-  });
-  githubUpdate(GH_OWNER,'bot-factory','bots.json',Buffer.from(JSON.stringify(safe,null,2))).catch(function(){});
+  if(!GH_OWNER||!registry.length)return;
+  try{
+    var safe=registry.map(function(b){
+      // Only keep known safe fields  never save Buffer or code
+      var c={
+        id:b.id||b.repoName,ticker:b.ticker,chain:b.chain,mode:b.mode,
+        repoName:b.repoName,ghOwner:b.ghOwner,status:b.status,builtAt:b.builtAt,
+        state:b.state||{},analytics:b.analytics||{},
+        d:b.d?{
+          botToken:b.d.botToken,chain:b.d.chain,mode:b.d.mode,status:b.d.status,
+          stage:b.d.stage,personality:b.d.personality,responseMode:b.d.responseMode,
+          name:b.d.name,ticker:b.d.ticker,ca:b.d.ca,twitter:b.d.twitter,tg:b.d.tg,
+          website:b.d.website,narrative:b.d.narrative,supply:b.d.supply,
+          buyTax:b.d.buyTax,sellTax:b.d.sellTax,maxWalletPct:b.d.maxWalletPct,
+          renounced:b.d.renounced,locked:b.d.locked,silenceBreaker:b.d.silenceBreaker,
+          revealCmd:b.d.revealCmd,hideCmd:b.d.hideCmd
+        }:{}
+      };
+      if(c.d.botToken&&typeof c.d.botToken==='string')c.d.botToken=obfuscateToken(c.d.botToken);
+      return c;
+    });
+    var json=JSON.stringify(safe,null,2);
+    if(json.length>500000){console.error('saveRegistry: output too large, aborting');return;}
+    githubUpdate(GH_OWNER,'bot-factory','bots.json',Buffer.from(json)).catch(function(e){console.error('saveRegistry:',e.message);});
+  }catch(e){console.error('saveRegistry error:',e.message);}
 }
 async function loadRegistry(){
   if(!GH_OWNER&&process.env.GH_ORG)GH_OWNER=process.env.GH_ORG;
