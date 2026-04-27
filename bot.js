@@ -395,6 +395,16 @@ bot.command('start',function(ctx){
     {parse_mode:'HTML'}
   );
 });
+// Edit image done button
+bot.action(/^ef_imgdone_(\d+)$/,async function(ctx){
+  await ctx.answerCbQuery('Images saved!');
+  var uid=String(ctx.from.id);
+  delete editSessions[uid];
+  try{await ctx.deleteMessage();}catch(_){}
+  scheduleReload(ctx);
+  return ctx.reply(E.check+' Images saved.\n\n'+E.clock+' Deploying in ~8s. Wait for this before next edit.',{parse_mode:'HTML'});
+});
+
 // Back button in wizard
 bot.action(/^w_back_(\w+)_(.+)$/,async function(ctx){
   await ctx.answerCbQuery();
@@ -595,7 +605,7 @@ bot.action(/^w_skip_(\w+)_(.+)$/,async function(ctx){
   await ctx.answerCbQuery();var field=ctx.match[1],uid=ctx.match[2],s=sessions[uid];if(!s)return;
   if(field==='twitter')s.d.twitter='';
   if(field==='narrative')s.d.narrative='';
-  if(field==='img')s.imgBuf=null;
+  if(field==='img'){/* keep imgBufs, just move on */}
   s.step=nextStep(s);
   try{await ctx.deleteMessage();}catch(_){}await showStep(ctx,s,uid);
 });
