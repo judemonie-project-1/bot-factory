@@ -985,20 +985,44 @@ bot.on('photo',async function(ctx){
     var ph=ctx.message.photo[ctx.message.photo.length-1];
     try{var lnk=await ctx.telegram.getFileLink(ph.file_id);var rb=await fetch(lnk.href);var buf=Buffer.from(await rb.arrayBuffer());
       await ctx.reply(E.gear+' Updating image...');
-      var eImgFile=(b.ticker||'token').replace(/\$/g,'').replace(/[^a-zA-Z0-9]/g,'').toLowerCase()+'.jpg';
+      var eBase=(b.ticker||'token').replace(/\$/g,'').replace(/[^a-zA-Z0-9]/g,'').toLowerCase();
+      if(!es.imgCount)es.imgCount=0;
+      var eImgFile=eBase+(es.imgCount===0?'':es.imgCount+1)+'.jpg';
       await githubUpdate(b.ghOwner,b.repoName,eImgFile,buf);
-      delete editSessions[uid];return ctx.reply(E.check+' Image updated! Deploying \u2014 bot will be live shortly.');
+      es.imgCount++;
+      if(es.imgCount<5){
+        return ctx.reply(E.check+' Image '+es.imgCount+' uploaded. Send another or tap Done.',
+          {reply_markup:{inline_keyboard:[[{text:E.check+' Done',callback_data:'ef_imgdone_'+es.idx}]]}});
+      }
+      delete editSessions[uid];return ctx.reply(E.check+' Images updated! Supervisor reloading.');
     }catch(e){delete editSessions[uid];return ctx.reply(E.xmark+' Failed: '+e.message);}
   }
-  // Wizard image
+  // Wizard image  accumulate up to 5
   var s=sessions[uid];
   if(!s||s.step!=='img')return;
   var ph2=ctx.message.photo[ctx.message.photo.length-1];
-  try{var lnk2=await ctx.telegram.getFileLink(ph2.file_id);var rb2=await fetch(lnk2.href);s.imgBuf=Buffer.from(await rb2.arrayBuffer());}
-  catch(e){return ctx.reply(E.xmark+' Image error: '+e.message);}
-  try{await ctx.deleteMessage();}catch(_){}
-  s.step=nextStep(s);
-  await showStep(ctx,s,uid);
+  try{
+    var lnk2=await ctx.telegram.getFileLink(ph2.file_id);
+    var rb2=await fetch(lnk2.href);
+    var imgData=Buffer.from(await rb2.arrayBuffer());
+    if(!s.imgBufs)s.imgBufs=[];
+    s.imgBufs.push(imgData);
+    s.imgBuf=s.imgBufs[0]; // keep first as primary
+    try{await ctx.deleteMessage();}catch(_){}
+    if(s.imgBufs.length<5){
+      // Ask for more or skip
+      var m2=await ctx.reply(
+        E.check+' Image '+s.imgBufs.length+' saved. Send another photo to add more (up to 5), or tap Done.',
+        {reply_markup:{inline_keyboard:[[{text:E.check+' Done',callback_data:'w_skip_img_'+uid}]]}}
+      );
+      s.lastMsgId=m2.message_id;
+    } else {
+      var m3=await ctx.reply(E.check+' 5 images saved! Moving on...');
+      s.lastMsgId=m3.message_id;
+      s.step=nextStep(s);
+      await showStep(ctx,s,uid);
+    }
+  } catch(e){return ctx.reply(E.xmark+' Image error: '+e.message);}
 });
 
 //  TEXT HANDLER 
@@ -1210,8 +1234,12 @@ async function doBuild(ctx,s,uid){
       await sleep(4000);
       await githubPush(ghOwner,repoName,'bot.js',Buffer.from(genBot(d,ci,d.mode)));
       await githubPush(ghOwner,repoName,'package.json',Buffer.from(genPkg(d.name,d.mode)));
-      var imgFile=d.ticker.replace(/\$/g,'').replace(/[^a-zA-Z0-9]/g,'').toLowerCase()+'.jpg';
-      if(s.imgBuf)await githubPush(ghOwner,repoName,imgFile,s.imgBuf);
+      var imgBase=d.ticker.replace(/\$/g,'').replace(/[^a-zA-Z0-9]/g,'').toLowerCase();
+      var imgBufs=s.imgBufs&&s.imgBufs.length?s.imgBufs:(s.imgBuf?[s.imgBuf]:[]);
+      for(var ii=0;ii<imgBufs.length;ii++){
+        var imgFile=imgBase+(ii===0?'':ii+1)+'.jpg';
+        await githubPush(ghOwner,repoName,imgFile,imgBufs[ii]);
+      }
     }},
     {n:'Deploying bot',fn:async function(){
       var botId=repoName;
