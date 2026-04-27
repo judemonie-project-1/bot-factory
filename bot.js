@@ -378,23 +378,26 @@ bot.command('start',function(ctx){
     '<i>Build and manage Telegram community bots for your token.</i>\n\n'+
     E.shield+' <b>Two bot types</b>\n'+
     '\u2022 <b>Full</b> \u2014 AI replies, moderation, silence breaker, /shill\n'+
-    '\u2022 <b>Guard</b> \u2014 moderation only, no AI\n\n'+
-    E.star+' <b>After /build</b>\n'+
-    '\u2022 Bot deployed and registered automatically\n'+
-    '\u2022 Status reports at 10am + 10pm WAT daily\n\n'+
-    '<b>Commands</b>\n'+
-    '/build \u2014 Build a new bot\n'+
-    '/bots \u2014 List all your bots\n'+
-    '/edit \u2014 Edit bot details (CA, stage, LP, TG, silence breaker...)\n'+
-    '/rebuild \u2014 Redeploy with latest code\n'+
-    '/stats \u2014 Live status for all bots\n'+
-    '/cleanup \u2014 Delete unused services\n'+
-    '/addgroq \u2014 Add AI key\n'+
-    '/addbot \u2014 Register existing bot\n'+
-    '/cancel \u2014 Cancel any operation',
-    {parse_mode:'HTML'}
+    '\u2022 <b>Guard</b> \u2014 moderation only, no AI',
+    {parse_mode:'HTML', reply_markup:{inline_keyboard:[
+      [{text:E.rocket+' Build a new bot',callback_data:'sb_build'}],
+      [{text:E.list+' List your bots',callback_data:'sb_bots'},{text:E.chart+' Live stats',callback_data:'sb_stats'}],
+      [{text:E.pencil+' Edit a bot',callback_data:'sb_edit'},{text:E.gear+' Rebuild',callback_data:'sb_rebuild'}],
+      [{text:E.shield+' Cleanup',callback_data:'sb_cleanup'},{text:E.gem+' Add AI key',callback_data:'sb_addgroq'}],
+    ]}}
   );
 });
+bot.action('sb_build',async function(ctx){await ctx.answerCbQuery();return ctx.reply(E.rocket+' Starting build...\n\nSend /build to begin.')});
+bot.action('sb_bots',async function(ctx){
+  await ctx.answerCbQuery();
+  if(!registry.length)return ctx.reply(E.list+' No bots yet. Use /build.');
+  return ctx.reply(E.list+' <b>Your Bots</b>\n\n'+registry.map(function(b,i){return (i+1)+'. '+E.rocket+' <b>'+(b.ticker||'Bot '+(i+1))+'</b> ('+(b.chain||'bsc').toUpperCase()+')\n   '+(b.mode==='guard'?E.shield+' Guard':E.robot+' Full')+' \u2022 '+(b.d&&b.d.status==='cto'?'CTO':'Active dev')+'\n   '+E.link+' '+(b.url||'no url');}).join('\n\n'),{parse_mode:'HTML',disable_web_page_preview:true});
+});
+bot.action('sb_stats',async function(ctx){await ctx.answerCbQuery();return ctx.reply(E.chart+' Fetching stats...')});
+bot.action('sb_edit',async function(ctx){await ctx.answerCbQuery();return ctx.reply(E.pencil+' Send /edit to choose which bot to edit.')});
+bot.action('sb_rebuild',async function(ctx){await ctx.answerCbQuery();return ctx.reply(E.gear+' Send /rebuild to choose which bot to redeploy.')});
+bot.action('sb_cleanup',async function(ctx){await ctx.answerCbQuery();return ctx.reply(E.shield+' Send /cleanup to manage unused services.')});
+bot.action('sb_addgroq',async function(ctx){await ctx.answerCbQuery();return ctx.reply(E.gem+' Send /addgroq to add or update your AI key.')});
 // Edit image done button
 bot.action(/^ef_imgdone_(\d+)$/,async function(ctx){
   await ctx.answerCbQuery('Images saved!');
