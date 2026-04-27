@@ -195,9 +195,21 @@ function saveRegistry(){
   }catch(e){console.error('saveRegistry error:',e.message);}
 }
 async function loadRegistry(){
-  if(!GH_OWNER&&process.env.GH_ORG)GH_OWNER=process.env.GH_ORG;
-  if(!GH_OWNER&&process.env.GH_OWNER)GH_OWNER=process.env.GH_OWNER;
-  if(!GH_OWNER){console.log('loadRegistry: GH_OWNER not set');return;}
+  // Try all possible env var names
+  if(!GH_OWNER)GH_OWNER=process.env.GH_ORG||process.env.GH_OWNER||process.env.GITHUB_ORG||'';
+  if(!GH_OWNER){
+    // Last resort: extract from GITHUB_TOKEN owner via API
+    try{
+      var ur=await fetch('https://api.github.com/user',{headers:{'Authorization':'token '+GITHUB_TOKEN}});
+      var ud=await ur.json();
+      // Check orgs
+      var or2=await fetch('https://api.github.com/user/orgs',{headers:{'Authorization':'token '+GITHUB_TOKEN}});
+      var od=await or2.json();
+      if(Array.isArray(od)&&od.length)GH_OWNER=od[0].login;
+      else GH_OWNER=ud.login||'';
+    }catch(e){console.log('loadRegistry: cannot determine GH_OWNER:',e.message);return;}
+  }
+  if(!GH_OWNER){console.log('loadRegistry: GH_OWNER still not set');return;}
   try{
     var r=await fetch('https://api.github.com/repos/'+GH_OWNER+'/bot-factory/contents/bots.json',{headers:{'Authorization':'token '+GITHUB_TOKEN,'Accept':'application/vnd.github.v3+json'}});
     if(r.ok){var d=await r.json();if(d.content){
