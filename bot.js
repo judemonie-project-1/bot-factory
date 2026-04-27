@@ -1179,7 +1179,7 @@ async function doBuild(ctx,s,uid){
   var d=s.d,ci=CHAIN[d.chain]||CHAIN.bsc;
   var groqKey=d.mode==='full'?nextGroq():'';
   if(d.mode==='full'&&!groqKey)return ctx.reply(E.xmark+' No AI key found. Add one with /addgroq first.');
-  d.revealCmd=rndCmd();d.hideCmd=rndCmd();
+  if(d.stage==='prelaunch'){d.revealCmd=d.revealCmd||rndCmd();d.hideCmd=d.hideCmd||rndCmd();}else{d.revealCmd='';d.hideCmd='';}
   d.name=d.name||d.ticker.replace('$','');
   var repoName=d.ticker.replace(/\$/g,'').replace(/[^a-zA-Z0-9]/g,'').toLowerCase()+'-bot-'+rnd(4);
   var guessUrl='';
