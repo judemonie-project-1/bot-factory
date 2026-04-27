@@ -661,23 +661,28 @@ bot.action(/^epk_(\d+)$/,async function(ctx){
   var d=b.d||{};
   try{await ctx.deleteMessage();}catch(_){}
   return ctx.reply(E.wrench+' <b>Edit '+b.ticker+'</b>\nWhat to change?',{parse_mode:'HTML',reply_markup:{inline_keyboard:[
-    [{text:'Twitter/X: '+(d.twitter?'set':'not set'),callback_data:'ef_twitter_'+i}],
-    [{text:'TG Group: '+(d.tg?'set':'not set'),callback_data:'ef_tg_'+i}],
-    [{text:'Silence Breaker: '+({'0':'Off','600000':'10 min','1800000':'30 min','3600000':'1 hr','7200000':'2 hr','10800000':'3 hr'}[String(d.silenceBreaker||'3600000')]||'1 hr'),callback_data:'ef_sil_'+i}],
-    [{text:'Narrative',callback_data:'ef_narrative_'+i}],
-    [{text:'Ticker: '+(d.ticker&&d.ticker!=='$TOKEN'?d.ticker:'NOT SET'),callback_data:'ef_ticker_'+i}],
-    [{text:'CA: '+((d.ca||'not set').slice(0,10)+'...'),callback_data:'ef_ca_'+i}],
-        [{text:'Supply',callback_data:'ef_supply_'+i}],
-    [{text:'Tax (buy/sell)',callback_data:'ef_tax_'+i}],
-    [{text:'Max wallet %',callback_data:'ef_maxwallet_'+i}],
-    [{text:'Renounced: '+(d.renounced||'NOT RENOUNCED'),callback_data:'ef_ren_'+i}],
+    [{text:'\u{1F3AF} Quick Setup (fill missing)',callback_data:'ef_setup_'+i}],
+    [{text:(d.ticker&&d.ticker!=='$TOKEN'?'\u2705 ':'')+' Ticker: '+(d.ticker&&d.ticker!=='$TOKEN'?d.ticker:'not set'),callback_data:'ef_ticker_'+i},
+     {text:(d.ca?'\u2705 ':'')+' CA: '+(d.ca?d.ca.slice(0,6)+'...':'not set'),callback_data:'ef_ca_'+i}],
+    [{text:(d.twitter?'\u2705 ':'')+' Twitter/X: '+(d.twitter?'set':'not set'),callback_data:'ef_twitter_'+i},
+     {text:(d.tg?'\u2705 ':'')+' TG: '+(d.tg?'set':'not set'),callback_data:'ef_tg_'+i}],
+    [{text:(d.narrative?'\u2705 ':'')+' Narrative',callback_data:'ef_narrative_'+i},
+     {text:(d.supply&&d.supply!=='N/A'?'\u2705 ':'')+' Supply',callback_data:'ef_supply_'+i}],
+    [{text:(d.buyTax&&d.buyTax!=='?'?'\u2705 ':'')+' Tax: '+(d.buyTax||'?')+'/'+(d.sellTax||'?')+'%',callback_data:'ef_tax_'+i},
+     {text:(d.maxWalletPct?'\u2705 ':'')+' Max Wallet: '+(d.maxWalletPct||'not set'),callback_data:'ef_maxwallet_'+i}],
+    [{text:(d.renounced?'\u2705 ':'')+' Renounced: '+(d.renounced||'not set'),callback_data:'ef_ren_'+i}],
     [{text:(d.locked==='LOCKED'?'\u2705':'')+' LOCKED',callback_data:'eflp_LOCKED_'+i},
      {text:(d.locked==='BURNED'?'\u2705':'')+' BURNED',callback_data:'eflp_BURNED_'+i},
-     {text:((!d.locked||d.locked==='NOT LOCKED')?'\u2705':'')+' NOT LOCKED',callback_data:'eflp_NOTLOCKED_'+i}],
-    [{text:'Bot image',callback_data:'ef_image_'+i}],
-    [{text:'\u{1F7E2} Stage: '+({'live':'\u{1F7E2} Live','prelaunch':'\u{1F7E1} Pre-launch','noCA':'\u26AA No CA yet'}[(b.d&&b.d.stage)||'live']||'Live')+' (tap to change)',callback_data:'ef_stage_'+i}],
-        [{text:(d.status==='cto'?E.rocket+' Switch to Launch':E.shield+' Switch to CTO'),callback_data:'ef_cto_'+i}],
-    [{text:E.rocket+' Quick setup (fill missing fields)',callback_data:'ef_setup_'+i}],
+     {text:(!d.locked||d.locked==='NOT LOCKED'?'\u2705':'')+' NOT LOCKED',callback_data:'eflp_NOTLOCKED_'+i}],
+    [{text:'\u{1F4F7} Bot image',callback_data:'ef_image_'+i},
+     {text:'\u{1F514} Silence: '+({'0':'Off','600000':'10m','1800000':'30m','3600000':'1h','7200000':'2h','10800000':'3h'}[String(d.silenceBreaker||'3600000')]||'1h'),callback_data:'ef_sil_'+i}],
+    [{text:'Stage: '+({'live':'\u{1F7E2} Live','prelaunch':'\u{1F7E1} Pre-launch','noCA':'\u26AA No CA'}[(b.d&&b.d.stage)||'live']||'Live'),callback_data:'ef_stage_'+i},
+    ],
+    [{text:(d.stage==='live'?'\u2705':'')+' Live',callback_data:'esg_live_'+i},
+     {text:(d.stage==='prelaunch'?'\u2705':'')+' Pre-launch',callback_data:'esg_prelaunch_'+i},
+     {text:(d.stage==='noCA'?'\u2705':'')+' No CA',callback_data:'esg_noCA_'+i}],
+    [{text:(d.status==='cto'?'\u2705':'')+' CTO',callback_data:'ecto_cto_'+i},
+     {text:(d.status!=='cto'?'\u2705':'')+' Active Dev',callback_data:'ecto_dev_'+i}],
     [{text:E.xmark+' Cancel',callback_data:'ecancel'}],
   ]}});
 });
@@ -723,6 +728,14 @@ bot.action(/^ef_image_(\d+)$/,async function(ctx){
   editSessions[uid]={idx:i,field:'image'};try{await ctx.deleteMessage();}catch(_){}
   return ctx.reply(E.pencil+' Send new bot image (photo):');
 });
+bot.action(/^ectos_(cto|launch)_(\d+)$/,async function(ctx){
+  await ctx.answerCbQuery();
+  var val=ctx.match[1],i=parseInt(ctx.match[2]),b=registry[i];if(!b)return;
+  b.d=b.d||{};b.d.status=val;
+  try{await ctx.deleteMessage();}catch(_){}
+  await pushAndSave(ctx,b,'Status set to '+(val==='cto'?'CTO':'Active Dev'));
+});
+
 bot.action(/^ef_stage_(\d+)$/,async function(ctx){
   await ctx.answerCbQuery();var i=parseInt(ctx.match[1]),b=registry[i];if(!b)return ctx.reply('Not found.');
   try{await ctx.deleteMessage();}catch(_){}
@@ -799,11 +812,24 @@ bot.action(/^eflp_([A-Z]+)_(\d+)$/,async function(ctx){
   await pushAndSave(ctx,b,'LP set to '+val);
 });
 bot.action(/^ef_cto_(\d+)$/,async function(ctx){
-  await ctx.answerCbQuery();var i=parseInt(ctx.match[1]),b=registry[i];if(!b)return;
-  b.d=b.d||{};b.d.status=b.d.status==='cto'?'launch':'cto';
+  await ctx.answerCbQuery();
+  var i=parseInt(ctx.match[1]),b=registry[i];if(!b)return;
   try{await ctx.deleteMessage();}catch(_){}
-  await pushAndSave(ctx,b,'switched to '+(b.d.status==='cto'?'CTO':'Launch')+' mode');
+  return ctx.reply('\u{1F3AF} <b>Project Status</b>\nSelect:',{parse_mode:'HTML',reply_markup:{inline_keyboard:[
+    [{text:(b.d&&b.d.status==='cto'?'\u2705 ':'')+' CTO (Community Takeover)',callback_data:'ectos_cto_'+i}],
+    [{text:(b.d&&b.d.status!=='cto'?'\u2705 ':'')+' Active Dev',callback_data:'ectos_launch_'+i}],
+    [{text:E.xmark+' Cancel',callback_data:'ecancel'}],
+  ]}});
 });
+// Status select buttons
+bot.action(/^ecto_(cto|dev)_(\d+)$/,async function(ctx){
+  await ctx.answerCbQuery();
+  var i=parseInt(ctx.match[2]),b=registry[i];if(!b)return;
+  b.d=b.d||{};b.d.status=ctx.match[1]==='cto'?'cto':'launch';
+  try{await ctx.deleteMessage();}catch(_){}
+  await pushAndSave(ctx,b,'Status set to '+(b.d.status==='cto'?'CTO':'Active Dev'));
+});
+
 bot.action('ecancel',async function(ctx){
   await ctx.answerCbQuery();delete editSessions[String(ctx.from.id)];
   try{await ctx.deleteMessage();}catch(_){}return ctx.reply(E.xmark+' Cancelled.');
