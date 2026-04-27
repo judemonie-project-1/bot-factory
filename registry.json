@@ -140,7 +140,7 @@
       "sellTax": "5",
       "maxWalletPct": "",
       "renounced": "",
-      "locked": "NOT LOCKED",
+      "locked": "LOCKED",
       "silenceBreaker": "3600000",
       "revealCmd": "",
       "hideCmd": ""
