@@ -825,7 +825,7 @@ async function pushAndSave(ctx,b,what){
       E.check+' <b>'+b.ticker+'</b> \u2014 '+what+'!\n\n'
       +E.clock+' Deploying in ~8s. Wait for this before next edit.',
       {parse_mode:'HTML', reply_markup:{inline_keyboard:[
-        [{text:E.chart+' View bots',callback_data:'show_bots'},{text:E.pencil+' Edit this bot',callback_data:'show_edit_'+repoName}],
+        [{text:E.chart+' View bots',callback_data:'show_bots'},{text:E.pencil+' Edit this bot',callback_data:'show_edit_'+(b.repoName||'')}],
         [{text:E.rocket+' Build another',callback_data:'build_another'}],
       ]}}
     );
@@ -1167,6 +1167,7 @@ bot.on('text',async function(ctx){
     try{await ctx.deleteMessage();}catch(_){}
     b.d=b.d||{};
     if(es.field==='ticker'){var tk=text.trim();if(!tk.startsWith('$'))tk='$'+tk;b.d.ticker=tk.toUpperCase();b.ticker=b.d.ticker;}
+    if(es.field==='ticker'){var tk2=text.trim();if(!tk2.startsWith('$'))tk2='$'+tk2;b.d.ticker=tk2.toUpperCase();b.ticker=b.d.ticker;}
     if(es.field==='ca')        b.d.ca=text.trim();
         if(es.field==='twitter')  b.d.twitter=text;
     if(es.field==='tg')       b.d.tg=text.startsWith('http')||text.startsWith('@')?text:'';
