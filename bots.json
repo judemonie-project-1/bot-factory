@@ -113,7 +113,7 @@
       },
       "chain": "bsc",
       "mode": "full",
-      "stage": "live",
+      "stage": "prelaunch",
       "personality": "alpha",
       "responseMode": "focused",
       "name": "NRISE",
