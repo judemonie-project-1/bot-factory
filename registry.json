@@ -125,7 +125,7 @@
       },
       "chain": "bsc",
       "mode": "full",
-      "status": "launch",
+      "status": "cto",
       "stage": "prelaunch",
       "personality": "alpha",
       "responseMode": "focused",
