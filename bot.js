@@ -19,6 +19,7 @@ var TG_API_HASH=process.env.TG_API_HASH||'';
 var TG_SESSION=process.env.TG_SESSION||'';
 var TG_PHONE=process.env.TG_PHONE||'';
 var tgClient=null;
+var tgReady=false;
 var tgLoginSessions={};  // uid -> pending login state
 
 var SUPERVISOR_URL=(process.env.SUPERVISOR_URL||'').replace(/\/+$/,'');
@@ -1737,18 +1738,28 @@ async function startTgLogin(ctx,phone){
   if(!TelegramClient||!TG_API_ID){return ctx.reply('\u274C TG_API_ID or gramjs not configured.');}
   try{
     var session=new StringSession('');
-    tgClient=new TelegramClient(session,TG_API_ID,TG_API_HASH,{connectionRetries:3});
+    tgClient=new TelegramClient(session,TG_API_ID,TG_API_HASH,{connectionRetries:5,retryDelay:1000});
     await tgClient.connect();
     var result=await tgClient.sendCode({apiId:TG_API_ID,apiHash:TG_API_HASH},phone);
-    tgLoginSessions[String(ctx.from.id)]={phoneCodeHash:result.phoneCodeHash,phone:phone};
-    return ctx.reply('\u2705 Code sent to '+phone+'\n\nSend /tgcode XXXXXX with the code you received.');
+    var codeHash=result.phoneCodeHash||result.phone_code_hash||'';
+    if(!codeHash)throw new Error('No phoneCodeHash in response');
+    tgLoginSessions[String(ctx.from.id)]={phoneCodeHash:codeHash,phone:phone};
+    return ctx.reply(
+      '\u2705 Code sent to '+phone+'\n\nCheck your Telegram messages and send:\n/tgcode 12345\n\n<i>You have 5 minutes before the code expires.</i>',
+      {parse_mode:'HTML'}
+    );
   }catch(e){tgClient=null;return ctx.reply('\u274C Login failed: '+e.message);}
 }
 
 async function completeTgLogin(ctx,code){
   var uid=String(ctx.from.id);
   var ls=tgLoginSessions[uid];
-  if(!ls)return ctx.reply('\u274C No login in progress. Use /tglogin first.');
+  // Fallback: if uid not found, check if there's any pending session
+  if(!ls) {
+    var keys=Object.keys(tgLoginSessions);
+    if(keys.length>0) ls=tgLoginSessions[keys[0]];
+  }
+  if(!ls||!tgClient)return ctx.reply('\u274C No login in progress. Please run /tglogin again.');
   try{
     var Api=require('telegram').Api;
     // gramjs v2 correct sign-in
