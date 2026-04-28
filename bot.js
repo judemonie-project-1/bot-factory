@@ -358,6 +358,14 @@ async function showStep(ctx,s,uid){
   if(step==='lp')      return say(ctx,s,E.pencil+' Is LP (liquidity) locked?',lpBtns(uid));
   if(step==='narrative')return say(ctx,s,E.pencil+' Token narrative?\n<i>1-2 sentences. What makes it unique. Used for AI personality.</i>',skipBtn(uid,'narrative'));
   if(step==='img')     return say(ctx,s,E.pencil+' Send bot image (JPG/PNG)\n<i>This is the image shown with CA and X replies</i>',skipBtn(uid,'img'));
+  if(step==='ticker_manual'){
+    // Auto-skip if ticker already set from DexScreener
+    if(s.d.ticker&&s.d.ticker!=='$TOKEN'){
+      s.step=nextStep(s);
+      return showStep(ctx,s,uid);
+    }
+    return say(ctx,s,E.pencil+' <b>Token ticker?</b>\n\nEnter the ticker symbol (e.g. <code>$MPC</code>)');
+  }
   if(step==='bottoken'){
     if(tgClient){
       return say(ctx,s,E.rocket+' <b>Create bot automatically?</b>\n\nBotFather is connected. I can create the token for you.',{
@@ -2465,85 +2473,22 @@ app.listen(PORT,async function(){
     }).catch(function(){});
   }
   try{await regWebhook();}catch(e){console.log('Hook:',e.message);}
-  try{
-    await bot.command('setsupervisor',async function(ctx){
-  var args=ctx.message.text.split(/\s+/);
-  if(args.length<3)return ctx.reply('Usage: /setsupervisor [url] [reload_secret]');
-  SUPERVISOR_URL=args[1].replace(/\/+$/,'');
-  RELOAD_SECRET=args[2];
-  try{
-    var r=await fetch(SUPERVISOR_URL+'/health');
-    var d=await r.json();
-    return ctx.reply(E.check+' Supervisor connected!\n\nBots running: '+d.bots+'\nUptime: '+Math.floor((d.uptime||0)/60)+'m',{parse_mode:'HTML'});
-  }catch(e){
-    return ctx.reply(E.warn+' Supervisor URL saved but could not ping it: '+e.message+'\n\nCheck the URL is correct and supervisor is running.');
-  }
-});
-
-bot.telegram.setMyCommands([
-      {command:'build',    description:'Build a new community bot'},
-      {command:'bots',     description:'List all your bots'},
-      {command:'edit',     description:'Edit bot details'},
-      {command:'rebuild',  description:'Redeploy a bot with latest code'},
-      {command:'stats',    description:'Live status report for all bots'},
-      {command:'cleanup',  description:'Delete unused services and repos'},
-      {command:'addgroq',  description:'Add AI key (auto-pushes to all bots)'},
-      {command:'cancel',      description:'Cancel current operation'},
-      {command:'refresh',   description:'Reload bot registry from GitHub'},
-      {command:'tglogin',   description:'Connect Telegram account for auto bot creation'},
-      {command:'tgcode',    description:'Enter verification code after /tglogin'},
-      {command:'tgstatus',  description:'Check Telegram client connection status'},
-      {command:'tglogin',     description:'Connect Telegram account for auto bot creation'},
-      {command:'tgcode',      description:'Complete Telegram login with code'},
-      {command:'tgstatus',    description:'Check Telegram client status'},
-      {command:'setsupervisor',description:'Connect to bot supervisor'},
-    ]);
-  }catch(e){console.log('Commands:',e.message);}
-  setInterval(function(){if(WEBHOOK_URL)try{fetch(WEBHOOK_URL+'/health').catch(function(){});}catch(_){}},4*60*1000);
-  try{scheduleDailyReport();}catch(e){console.log('Daily report:',e.message);}
-  try{loadUptime();}catch(_){}
-  console.log('Bot Factory is live.');
-});
-app.post('/webhook',function(req,res){bot.handleUpdate(req.body,res);});
-app.get('/',function(req,res){res.end('OK');});
-app.get('/health',function(req,res){res.end('OK');});
-
-async function regWebhook(){
-  if(!WEBHOOK_URL){console.log('No WEBHOOK_URL');return;}
-  var url=WEBHOOK_URL+'/webhook';
-  for(var i=0;i<5;i++){
-    try{if(await bot.telegram.setWebhook(url)){console.log('Factory webhook:',url);return;}}
-    catch(e){console.log('WH '+(i+1)+':',e.message);}
-    await sleep(3000);
-  }
-}
-async function getGhOwner(){
-  try{var r=await fetch('https://api.github.com/user',{headers:{'Authorization':'token '+GITHUB_TOKEN,'Accept':'application/vnd.github.v3+json'}});var d=await r.json();GH_OWNER=d.login||'';console.log('GH:',GH_OWNER);}
-  catch(e){console.log('GH:',e.message);}
-}
-process.on('uncaughtException',function(e){console.error('Factory:',e.message);});
-process.on('unhandledRejection',function(e){console.error('Factory rej:',e&&e.message);});
-
-app.listen(PORT,async function(){
-  console.log('Bot Factory starting on port',PORT);
-  try{await sleep(2000);}catch(_){}
-  try{await getGhOwner();}catch(e){console.log('GH:',e.message);}
-  try{await loadRegistry();}catch(e){console.log('Reg:',e.message);}
-  try{await regWebhook();}catch(e){console.log('Hook:',e.message);}
-  try{
-    await bot.telegram.setMyCommands([
-      {command:'build',   description:'Build a new bot'},
-      {command:'addbot',  description:'Register existing bot'},
-      {command:'bots',    description:'List your bots'},
-      {command:'edit',    description:'Edit a bot'},
-      {command:'rebuild', description:'Full rebuild from stored data'},
-      {command:'update',  description:'Push latest code to bot(s)'},
-      {command:'stats',   description:'Health check'},
-      {command:'addgroq', description:'Add AI key'},
-      {command:'cancel',  description:'Cancel current operation'},
-    ]);
-  }catch(e){console.log('Commands:',e.message);}
-  setInterval(function(){if(WEBHOOK_URL)try{fetch(WEBHOOK_URL+'/health').catch(function(){});}catch(_){}},4*60*1000);
+  bot.telegram.setMyCommands([
+    {command:'build',       description:'Build a new community bot'},
+    {command:'bots',        description:'List all your bots'},
+    {command:'edit',        description:'Edit bot details'},
+    {command:'rebuild',     description:'Redeploy a bot'},
+    {command:'stats',       description:'Live status for all bots'},
+    {command:'cleanup',     description:'Delete unused services'},
+    {command:'addgroq',     description:'Add AI key'},
+    {command:'refresh',     description:'Reload bot registry'},
+    {command:'tglogin',     description:'Connect Telegram for auto bot creation'},
+    {command:'tgcode',      description:'Enter login verification code'},
+    {command:'cancel',      description:'Cancel current operation'},
+  ]).catch(function(){});
+  setInterval(function(){
+    if(WEBHOOK_URL)try{fetch(WEBHOOK_URL+'/health').catch(function(){});}catch(_){}
+  },4*60*1000);
   try{scheduleDailyReport();}catch(e){console.log('Daily report:',e.message);}
   console.log('Bot Factory is live.');
 });
