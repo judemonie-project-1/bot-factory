@@ -1750,18 +1750,31 @@ async function completeTgLogin(ctx,code){
   var ls=tgLoginSessions[uid];
   if(!ls)return ctx.reply('\u274C No login in progress. Use /tglogin first.');
   try{
-    await tgClient.signIn({apiId:TG_API_ID,apiHash:TG_API_HASH},
-      {phoneNumber:ls.phone,phoneCodeHash:ls.phoneCodeHash,phoneCode:code});
+    var Api=require('telegram').Api;
+    // gramjs v2 correct sign-in
+    var result=await tgClient.invoke(new Api.auth.SignIn({
+      phoneNumber:ls.phone,
+      phoneCodeHash:ls.phoneCodeHash,
+      phoneCode:code.trim()
+    }));
+    if(!result)throw new Error('Sign in returned empty result');
     var sessionStr=tgClient.session.save();
     delete tgLoginSessions[uid];
+    tgReady=true;
     await ctx.reply(
-      '\u2705 Login successful!\n\n'+
-      'Add this to your Render env vars:\n'+
-      '<b>TG_SESSION</b> = <code>'+sessionStr+'</code>\n\n'+
-      'After adding, redeploy the factory.',
+      '\u2705 BotFather access granted!\n\n'+
+      'Now add this to Render env vars (bot-factory service):\n\n'+
+      '<b>TG_SESSION</b>\n<code>'+sessionStr+'</code>\n\n'+
+      'Save + redeploy. After that, /build will auto-create bot tokens.',
       {parse_mode:'HTML'}
     );
-  }catch(e){return ctx.reply('\u274C Code error: '+e.message);}
+  }catch(e){
+    var msg=e.message||'';
+    if(msg.includes('SESSION_PASSWORD_NEEDED')){
+      return ctx.reply('\u274C 2FA is enabled on this account.\n\nDisable 2FA on Telegram settings first, then try /tglogin again.');
+    }
+    return ctx.reply('\u274C Login failed: '+msg+'\n\nTry /tglogin again.');
+  }
 }
 
 async function signalReload(){
