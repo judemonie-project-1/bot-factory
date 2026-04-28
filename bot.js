@@ -1,5 +1,12 @@
 'use strict';
 var Telegraf=require('telegraf').Telegraf;
+// Telegram user client for BotFather automation
+var TelegramClient,StringSession;
+try{
+  var tg=require('telegram');
+  TelegramClient=tg.TelegramClient;
+  StringSession=tg.sessions.StringSession;
+}catch(_){console.log('gramjs not installed  BotFather automation disabled');}
 var express=require('express');
 var fs=require('fs');
 var path=require('path');
@@ -7,6 +14,13 @@ var path=require('path');
 var BOT_TOKEN=process.env.BOT_TOKEN;
 var GITHUB_TOKEN=process.env.GITHUB_TOKEN;
 var RENDER_KEY=process.env.RENDER_API_KEY;
+var TG_API_ID=parseInt(process.env.TG_API_ID||'0');
+var TG_API_HASH=process.env.TG_API_HASH||'';
+var TG_SESSION=process.env.TG_SESSION||'';
+var TG_PHONE=process.env.TG_PHONE||'';
+var tgClient=null;
+var tgLoginSessions={};  // uid -> pending login state
+
 var SUPERVISOR_URL=(process.env.SUPERVISOR_URL||'').replace(/\/+$/,'');
 var RELOAD_SECRET=process.env.RELOAD_SECRET||'sup-reload-secret';
 var CRON_KEY=process.env.CRONJOB_API_KEY;
@@ -343,7 +357,17 @@ async function showStep(ctx,s,uid){
   if(step==='lp')      return say(ctx,s,E.pencil+' Is LP (liquidity) locked?',lpBtns(uid));
   if(step==='narrative')return say(ctx,s,E.pencil+' Token narrative?\n<i>1-2 sentences. What makes it unique. Used for AI personality.</i>',skipBtn(uid,'narrative'));
   if(step==='img')     return say(ctx,s,E.pencil+' Send bot image (JPG/PNG)\n<i>This is the image shown with CA and X replies</i>',skipBtn(uid,'img'));
-  if(step==='bottoken')return say(ctx,s,E.pencil+' <b>BotFather token?</b>\n\n<i>1. Open @BotFather\n2. Send /newbot, enter a name and username (must end in bot)\n3. Copy the token and paste it here</i>');
+  if(step==='bottoken'){
+    if(tgClient){
+      return say(ctx,s,E.rocket+' <b>Create bot automatically?</b>\n\nBotFather is connected. I can create the token for you.',{
+        inline_keyboard:[
+          [{text:E.check+' Auto-create (recommended)',callback_data:'w_autocreate_'+uid}],
+          [{text:E.pencil+' Enter token manually',callback_data:'w_manualtoken_'+uid}],
+        ]
+      });
+    }
+    return say(ctx,s,E.pencil+' <b>Bot token?</b>\n\n<i>1. Open @BotFather\n2. /newbot\n3. Enter name + username ending in _bot\n4. Paste token here</i>');
+  }
   if(step==='renderurl')return say(ctx,s,E.pencil+' <b>Render URL?</b>\n<i>e.g. https://mpc-bot.onrender.com</i>');
   if(step==='confirm') return say(ctx,s,buildSummary(s));
 }
@@ -408,6 +432,69 @@ bot.action(/^ef_imgdone_(\d+)$/,async function(ctx){
   return ctx.reply(E.check+' Images saved.\n\n'+E.clock+' Deploying in ~8s. Wait for this before next edit.',{parse_mode:'HTML'});
 });
 
+// Auto-create bot via BotFather
+bot.action(/^w_autocreate_(\d+)$/,async function(ctx){
+  await ctx.answerCbQuery('Creating bot...');
+  var uid=ctx.match[1],s=sessions[uid];if(!s)return;
+  try{await ctx.deleteMessage();}catch(_){}
+  var msg=await ctx.reply(E.gear+' Creating bot on BotFather... please wait ~10 seconds.');
+  var name=(s.d.name||s.d.ticker||'My').replace(/[^a-zA-Z0-9 ]/g,' ').trim()+' Bot';
+  var result=await createBotOnBotFather(name,s.d.ticker||'token');
+  try{await bot.telegram.deleteMessage(ctx.chat.id,msg.message_id);}catch(_){}
+  if(!result||!result.token){
+    return ctx.reply(E.xmark+' Auto-create failed. Please enter token manually:',
+      {reply_markup:{inline_keyboard:[[{text:E.pencil+' Enter manually',callback_data:'w_manualtoken_'+uid}]]}});
+  }
+  s.d.botToken=result.token;
+  s.d.botUsername=result.username;
+  s.step=nextStep(s);
+  await ctx.reply(E.check+' Bot created!\n<b>@'+result.username+'</b>\n\nMoving on...',{parse_mode:'HTML'});
+  await showStep(ctx,s,uid);
+});
+
+// Manual token entry
+bot.action(/^w_manualtoken_(\d+)$/,async function(ctx){
+  await ctx.answerCbQuery();
+  var uid=ctx.match[1],s=sessions[uid];if(!s)return;
+  try{await ctx.deleteMessage();}catch(_){}
+  return ctx.reply(E.pencil+' Paste your BotFather token:');
+});
+
+// Auto-create bot via BotFather
+bot.action(/^w_autocreate_(.+)$/,async function(ctx){
+  await ctx.answerCbQuery();
+  var uid=ctx.match[1],s=sessions[uid];
+  if(!s)return ctx.reply('Session expired. Use /build to start over.');
+  try{await ctx.deleteMessage();}catch(_){}
+  var creating=await ctx.reply(E.rocket+' Creating bot on BotFather...\n\n<i>This takes ~10 seconds</i>',{parse_mode:'HTML'});
+  try{
+    var ticker=s.d.ticker||'TOKEN';
+    var botName=(s.d.name||ticker.replace(/\$/g,''))+' Bot';
+    var result=await createBotOnBotFather(botName,ticker);
+    try{await bot.telegram.deleteMessage(ctx.chat.id,creating.message_id);}catch(_){}
+    if(!result||!result.token){
+      return ctx.reply(E.xmark+' Auto-create failed. BotFather may be busy.\n\nPlease enter token manually:');
+    }
+    s.d.botToken=result.token;
+    s.d.botUsername=result.username;
+    s.step=nextStep(s);
+    await ctx.reply(E.check+' <b>Bot created!</b>\n\nUsername: @'+result.username+'\nToken: saved automatically.\n\n<i>Proceeding to next step...</i>',{parse_mode:'HTML'});
+    await sleep(1000);
+    await showStep(ctx,s,uid);
+  }catch(e){
+    try{await bot.telegram.deleteMessage(ctx.chat.id,creating.message_id);}catch(_){}
+    return ctx.reply(E.xmark+' Error: '+e.message+'\n\nPlease enter token manually:');
+  }
+});
+
+bot.action(/^w_manualtoken_(.+)$/,async function(ctx){
+  await ctx.answerCbQuery();
+  var uid=ctx.match[1],s=sessions[uid];
+  if(!s)return;
+  try{await ctx.deleteMessage();}catch(_){}
+  await showStep(ctx,s,uid);
+});
+
 // Back button in wizard
 bot.action(/^w_back_(\w+)_(.+)$/,async function(ctx){
   await ctx.answerCbQuery();
@@ -462,6 +549,27 @@ bot.action(/^show_edit_(.+)$/,async function(ctx){
       [{text:E.xmark+' Cancel',callback_data:'ecancel'}],
     ]}
   });
+});
+
+// TG Login commands
+bot.command('tglogin',async function(ctx){
+  var phone=(ctx.message.text.split(/\s+/)[1]||TG_PHONE).trim();
+  if(!phone)return ctx.reply('Usage: /tglogin +2349xxxxxxx');
+  return startTgLogin(ctx,phone);
+});
+
+bot.command('tgcode',async function(ctx){
+  var code=(ctx.message.text.split(/\s+/)[1]||'').trim();
+  if(!code)return ctx.reply('Usage: /tgcode 12345');
+  return completeTgLogin(ctx,code);
+});
+
+bot.command('tgstatus',async function(ctx){
+  if(!tgClient){return ctx.reply('\u274C TG client not connected.\n\nUse /tglogin to connect.');}
+  try{
+    var me=await tgClient.getMe();
+    return ctx.reply('\u2705 TG client connected as @'+(me.username||me.firstName)+'\n\nBotFather automation is ready.');
+  }catch(e){return ctx.reply('\u274C Client error: '+e.message);}
 });
 
 bot.command('cancel',function(ctx){var uid=String(ctx.from.id);delete sessions[uid];delete editSessions[uid];return ctx.reply(E.xmark+' Cancelled.');});
@@ -1559,6 +1667,103 @@ async function syncToBotsJson(entry){
   }catch(e){console.error('syncToBotsJson:',e.message);}
 }
 
+//  TELEGRAM USER CLIENT (BotFather automation) 
+async function connectTgClient(){
+  if(!TelegramClient||!TG_API_ID||!TG_API_HASH)return false;
+  try{
+    var session=new StringSession(TG_SESSION||'');
+    tgClient=new TelegramClient(session,TG_API_ID,TG_API_HASH,{connectionRetries:3});
+    await tgClient.connect();
+    if(!await tgClient.isUserAuthorized()){
+      console.log('TG client: not authorized');
+      tgClient=null; return false;
+    }
+    console.log('TG client: connected');
+    return true;
+  }catch(e){console.log('TG client error:',e.message);tgClient=null;return false;}
+}
+
+async function tgSend(peer,text){
+  if(!tgClient)return null;
+  await tgClient.sendMessage(peer,{message:text});
+  await sleep(2000);
+  var msgs=await tgClient.getMessages(peer,{limit:1});
+  return msgs&&msgs[0]?msgs[0].text:null;
+}
+
+async function createBotOnBotFather(botName,ticker){
+  if(!tgClient)return null;
+  try{
+    var peer='@BotFather';
+    // Start fresh
+    await tgClient.sendMessage(peer,{message:'/cancel'});
+    await sleep(1500);
+    await tgClient.sendMessage(peer,{message:'/newbot'});
+    await sleep(2500);
+    // Send bot display name
+    var cleanName=botName.replace(/[^a-zA-Z0-9 ]/g,'').trim().slice(0,50)||ticker.replace(/\$/g,'');
+    await tgClient.sendMessage(peer,{message:cleanName});
+    await sleep(2500);
+    // Send username (must end in _bot)
+    var base=ticker.replace(/[^a-zA-Z0-9]/g,'').toLowerCase();
+    // Try up to 5 username variants to avoid collision
+    var token=null,username=null;
+    for(var attempt=0;attempt<5;attempt++){
+      var stamp=Date.now().toString().slice(-4)+(attempt>0?String(attempt):'');
+      username=base+'_'+stamp+'_bot';
+      await tgClient.sendMessage(peer,{message:username});
+      await sleep(3000);
+      var msgs=await tgClient.getMessages(peer,{limit:1});
+      var reply=msgs&&msgs[0]?msgs[0].text:'';
+      var tokenMatch=reply.match(/(\d{8,12}:[A-Za-z0-9_-]{35,})/);
+      if(tokenMatch){token=tokenMatch[1];break;}
+      // Username taken  try again with new timestamp
+      if(reply.includes('Sorry')||reply.includes('already')||reply.includes('taken')){
+        await tgClient.sendMessage(peer,{message:'/newbot'});
+        await sleep(2000);
+        await tgClient.sendMessage(peer,{message:cleanName});
+        await sleep(2000);
+        continue;
+      }
+      break;
+    }
+    if(!token){console.log('BotFather: no token after 5 attempts');return null;}
+    return {token:token,username:username,name:cleanName};
+  }catch(e){console.log('createBot error:',e.message);return null;}
+}
+
+// One-time login flow
+async function startTgLogin(ctx,phone){
+  if(!TelegramClient||!TG_API_ID){return ctx.reply('\u274C TG_API_ID or gramjs not configured.');}
+  try{
+    var session=new StringSession('');
+    tgClient=new TelegramClient(session,TG_API_ID,TG_API_HASH,{connectionRetries:3});
+    await tgClient.connect();
+    var result=await tgClient.sendCode({apiId:TG_API_ID,apiHash:TG_API_HASH},phone);
+    tgLoginSessions[String(ctx.from.id)]={phoneCodeHash:result.phoneCodeHash,phone:phone};
+    return ctx.reply('\u2705 Code sent to '+phone+'\n\nSend /tgcode XXXXXX with the code you received.');
+  }catch(e){tgClient=null;return ctx.reply('\u274C Login failed: '+e.message);}
+}
+
+async function completeTgLogin(ctx,code){
+  var uid=String(ctx.from.id);
+  var ls=tgLoginSessions[uid];
+  if(!ls)return ctx.reply('\u274C No login in progress. Use /tglogin first.');
+  try{
+    await tgClient.signIn({apiId:TG_API_ID,apiHash:TG_API_HASH},
+      {phoneNumber:ls.phone,phoneCodeHash:ls.phoneCodeHash,phoneCode:code});
+    var sessionStr=tgClient.session.save();
+    delete tgLoginSessions[uid];
+    await ctx.reply(
+      '\u2705 Login successful!\n\n'+
+      'Add this to your Render env vars:\n'+
+      '<b>TG_SESSION</b> = <code>'+sessionStr+'</code>\n\n'+
+      'After adding, redeploy the factory.',
+      {parse_mode:'HTML'}
+    );
+  }catch(e){return ctx.reply('\u274C Code error: '+e.message);}
+}
+
 async function signalReload(){
   if(!SUPERVISOR_URL){console.log('No SUPERVISOR_URL set');return;}
   try{
@@ -2221,6 +2426,20 @@ app.listen(PORT,async function(){
   try{await sleep(2000);}catch(_){}
   try{await getGhOwner();}catch(e){console.log('GH:',e.message);}
   try{await loadRegistry();}catch(e){console.log('Reg:',e.message);}
+  // Connect TG user client for BotFather automation
+  if(TG_API_ID&&TG_API_HASH&&TG_SESSION){
+    connectTgClient().then(function(ok){
+      if(ok)console.log('TG client ready for BotFather automation');
+      else console.log('TG client: session invalid, use /tglogin');
+    });
+  }
+  // Connect TG client for BotFather automation
+  if(TG_API_ID&&TG_API_HASH&&TG_SESSION){
+    connectTgClient().then(function(ok){
+      if(ok)console.log('BotFather automation: READY');
+      else console.log('BotFather automation: not connected (use /tglogin)');
+    }).catch(function(){});
+  }
   try{await regWebhook();}catch(e){console.log('Hook:',e.message);}
   try{
     await bot.command('setsupervisor',async function(ctx){
@@ -2246,7 +2465,13 @@ bot.telegram.setMyCommands([
       {command:'cleanup',  description:'Delete unused services and repos'},
       {command:'addgroq',  description:'Add AI key (auto-pushes to all bots)'},
       {command:'cancel',      description:'Cancel current operation'},
-      {command:'refresh',     description:'Reload bot registry from GitHub'},
+      {command:'refresh',   description:'Reload bot registry from GitHub'},
+      {command:'tglogin',   description:'Connect Telegram account for auto bot creation'},
+      {command:'tgcode',    description:'Enter verification code after /tglogin'},
+      {command:'tgstatus',  description:'Check Telegram client connection status'},
+      {command:'tglogin',     description:'Connect Telegram account for auto bot creation'},
+      {command:'tgcode',      description:'Complete Telegram login with code'},
+      {command:'tgstatus',    description:'Check Telegram client status'},
       {command:'setsupervisor',description:'Connect to bot supervisor'},
     ]);
   }catch(e){console.log('Commands:',e.message);}
