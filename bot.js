@@ -166,6 +166,23 @@ async function fetchAllData(ca,chain){
     }
   }catch(e){result.errors.push('DexScreener: '+e.message);}
 
+  // 3. GeckoTerminal  excellent fallback, no API key needed
+  if(!result.found||!result.ticker||result.ticker==='$TOKEN'){
+    try{
+      var gtNet={'bsc':'bsc','eth':'eth','sol':'solana'}[chain]||chain;
+      var gtUrl='https://api.geckoterminal.com/api/v2/networks/'+gtNet+'/tokens/'+ca;
+      var gtr=await Promise.race([fetch(gtUrl,{headers:{'Accept':'application/json'}}),new Promise(function(_,rej){setTimeout(function(){rej(new Error('timeout'));},8000);})]);
+      var gtd=await gtr.json();
+      var gtToken=gtd.data&&gtd.data.attributes;
+      if(gtToken){
+        if(!result.name&&gtToken.name)result.name=gtToken.name;
+        if((!result.ticker||result.ticker==='$TOKEN')&&gtToken.symbol)result.ticker='$'+gtToken.symbol.replace(/^\$/,'');
+        if(!result.supply&&gtToken.total_supply)result.supply=fmtNum(parseFloat(gtToken.total_supply));
+        result.found=true;
+      }
+    }catch(e){result.errors.push('GeckoTerminal: '+e.message);}
+  }
+
   return result;
 }
 
@@ -301,7 +318,7 @@ function taxBtns(uid){return{inline_keyboard:[
 async function delMsg(ctx,id){if(id)try{await ctx.telegram.deleteMessage(ctx.chat.id,id);}catch(_){}}
 function addBack(kb,uid,step){
   if(!kb)return kb;
-  var flow=['chain','mode','gt','status','stage','pers','rmode','sil','ca','ticker_manual','twitter','tg','tax','maxwallet','lp','narrative','img','bottoken'];
+  var flow=['chain','mode','gt','status','stage','pers','rmode','sil','ca','ticker_manual','twitter','tg','website','tax','maxwallet','lp','narrative','img','bottoken'];
   var idx=flow.indexOf(step);
   if(idx<=0)return kb;
   var prevStep=flow[idx-1];
@@ -330,7 +347,7 @@ function nextStep(s){
   var skipSteps=(d.stage==='noCA')?['ca','tax','maxwallet','lp']:[];
   var flow=[];
   if(d.mode==='full')
-    flow=['chain','mode','status','stage','pers','rmode','sil','ca','ticker_manual','twitter','tg','tax','maxwallet','lp','narrative','img','bottoken'];
+    flow=['chain','mode','status','stage','pers','rmode','sil','ca','ticker_manual','twitter','tg','website','tax','maxwallet','lp','narrative','img','bottoken'];
   else
     flow=['chain','mode','gt','status','stage','sil','ca','ticker_manual','twitter','tg','tax','maxwallet','lp','narrative','img','bottoken'];
   if(isAdd&&!d.renderUrl)flow.push('renderurl');
@@ -352,7 +369,8 @@ async function showStep(ctx,s,uid){
   if(step==='stage')  return say(ctx,s,E.rocket+' <b>Project stage?</b>',stageBtns(uid));
   if(step==='ca')      return say(ctx,s,E.search+' <b>Contract address?</b>\n<i>Paste the CA and I will auto-fetch token data from BSCScan + DexScreener</i>');
   if(step==='twitter') return say(ctx,s,E.pencil+' Twitter/X link?'+(d.twitter?'\n<i>Auto-fetched: '+d.twitter+' \u2014 send new one to change, or tap Skip</i>':'\n<i>Paste the link or tap Skip</i>'),skipBtn(uid,'twitter'));
-  if(step==='tg')     return say(ctx,s,E.link+' <b>Telegram group link?</b>\n<i>e.g. https://t.me/yourgroup (or skip)</i>');
+  if(step==='tg')     return say(ctx,s,E.link+' <b>Telegram group link?</b>\n<i>e.g. https://t.me/yourgroup (or skip)</i>',skipBtn(uid,'tg'));
+  if(step==='website') return say(ctx,s,E.globe+' <b>Website?</b>\n<i>e.g. https://yourtoken.xyz\nType skip if none</i>',skipBtn(uid,'website'));
   if(step==='tax')     return say(ctx,s,E.pencil+' Buy / sell tax?'+(d.buyTax&&d.sellTax&&d.buyTax!=='5'?'\n<i>Auto-detected: '+d.buyTax+'% / '+d.sellTax+'%</i>':''),taxBtns(uid));
   if(step==='maxwallet')return say(ctx,s,E.pencil+' Max wallet limit?',mwBtns(uid));
   if(step==='lp')      return say(ctx,s,E.pencil+' Is LP (liquidity) locked?',lpBtns(uid));
@@ -579,6 +597,23 @@ bot.command('tgstatus',async function(ctx){
     var me=await tgClient.getMe();
     return ctx.reply('\u2705 TG client connected as @'+(me.username||me.firstName)+'\n\nBotFather automation is ready.');
   }catch(e){return ctx.reply('\u274C Client error: '+e.message);}
+});
+
+bot.command('progress',async function(ctx){
+  var uid=String(ctx.from.id);
+  var s=sessions[uid];
+  if(!s)return ctx.reply('No active build. Use /build to start.');
+  var d=s.d||{};
+  var lines=[E.pencil+' <b>Current build progress:</b>\n'];
+  if(d.ticker)lines.push(E.check+' Ticker: <b>'+d.ticker+'</b>');
+  if(d.ca)lines.push(E.check+' CA: <code>'+d.ca.slice(0,10)+'...</code>');
+  if(d.twitter)lines.push(E.check+' Twitter: '+d.twitter);
+  if(d.tg)lines.push(E.check+' TG: '+d.tg);
+  if(d.website)lines.push(E.check+' Website: '+d.website);
+  if(d.narrative)lines.push(E.check+' Narrative: set');
+  if(d.supply)lines.push(E.check+' Supply: '+d.supply);
+  lines.push('\nCurrent step: <b>'+s.step+'</b>');
+  return ctx.reply(lines.join('\n'),{parse_mode:'HTML',disable_web_page_preview:true});
 });
 
 bot.command('cancel',function(ctx){var uid=String(ctx.from.id);delete sessions[uid];delete editSessions[uid];return ctx.reply(E.xmark+' Cancelled.');});
@@ -1240,7 +1275,7 @@ bot.on('photo',async function(ctx){
       var eImgFile=eBase+(es.imgCount===0?'':es.imgCount+1)+'.jpg';
       await githubUpdate(b.ghOwner,b.repoName,eImgFile,buf);
       es.imgCount++;
-      if(es.imgCount<5){
+      if(es.imgCount<10){
         return ctx.reply(E.check+' Image '+es.imgCount+' uploaded. Send another or tap Done.',
           {reply_markup:{inline_keyboard:[[{text:E.check+' Done',callback_data:'ef_imgdone_'+es.idx}]]}});
       }
@@ -1259,7 +1294,7 @@ bot.on('photo',async function(ctx){
     s.imgBufs.push(imgData);
     s.imgBuf=s.imgBufs[0]; // keep first as primary
     try{await ctx.deleteMessage();}catch(_){}
-    if(s.imgBufs.length<5){
+    if(s.imgBufs.length<10){
       // Ask for more or skip
       var m2=await ctx.reply(
         E.check+' Image '+s.imgBufs.length+' saved. Send another photo to add more (up to 5), or tap Done.',
@@ -1347,7 +1382,7 @@ bot.on('text',async function(ctx){
 
   // Wizard
   var s=sessions[uid];
-  if(!s)return ctx.reply('Use /build or /addbot to start. Type /start for help.');
+  if(!s)return; // Session expired or not started  don't spam user
   try{await ctx.deleteMessage();}catch(_){}
   try{if(s.lastMsgId)await ctx.telegram.deleteMessage(ctx.chat.id,s.lastMsgId);}catch(_){}
   s.lastMsgId=null;
@@ -1461,6 +1496,11 @@ bot.on('text',async function(ctx){
   if(s.step==='tg'){
     var tg=text.trim();
     s.d.tg=(tg.startsWith('http')||tg.startsWith('@')||tg==='-'||tg.toLowerCase()==='skip')?tg.toLowerCase()==='skip'||tg==='-'?'':tg:'';
+    s.step=nextStep(s);await showStep(ctx,s,uid);return;
+  }
+  if(s.step==='website'){
+    var ws2=text.trim();
+    s.d.website=(ws2==='-'||ws2.toLowerCase()==='skip')?'':(ws2.startsWith('http')?ws2:'https://'+ws2);
     s.step=nextStep(s);await showStep(ctx,s,uid);return;
   }
   // Narrative
