@@ -5,15 +5,16 @@
     "repoName": "mpc-bot-31hk",
     "state": {
       "caUnlocked": true,
-      "groupChatId": null,
+      "groupChatId": -1003701480279,
       "shoutoutOn": true
     },
     "analytics": {
-      "messages": 0,
+      "messages": 2,
       "shills": 0,
-      "caReqs": 0,
+      "caReqs": 2,
       "priceReqs": 0,
-      "joinedAt": 1775604179857
+      "joinedAt": 1775604179857,
+      "xReqs": 1
     }
   },
   {
@@ -22,15 +23,16 @@
     "repoName": "-bot-a4e0",
     "state": {
       "caUnlocked": true,
-      "groupChatId": null,
+      "groupChatId": -1003701480279,
       "shoutoutOn": true
     },
     "analytics": {
-      "messages": 0,
+      "messages": 2,
       "shills": 0,
-      "caReqs": 0,
+      "caReqs": 2,
       "priceReqs": 0,
-      "joinedAt": 1776204678002
+      "joinedAt": 1776204678002,
+      "xReqs": 1
     }
   },
   {
@@ -56,15 +58,16 @@
     "repoName": "httpsxcomcakepnutcto-bot-j7i8",
     "state": {
       "caUnlocked": true,
-      "groupChatId": -1003701480279,
+      "groupChatId": -1003838128091,
       "shoutoutOn": true
     },
     "analytics": {
-      "messages": 1,
+      "messages": 3,
       "shills": 0,
-      "caReqs": 1,
+      "caReqs": 2,
       "priceReqs": 0,
-      "joinedAt": 1776400000000
+      "joinedAt": 1776400000000,
+      "xReqs": 1
     }
   },
   {
@@ -73,15 +76,16 @@
     "repoName": "fwc26-bot-ptaj",
     "state": {
       "caUnlocked": true,
-      "groupChatId": null,
+      "groupChatId": -1003701480279,
       "shoutoutOn": true
     },
     "analytics": {
-      "messages": 0,
+      "messages": 2,
       "shills": 0,
-      "caReqs": 0,
+      "caReqs": 2,
       "priceReqs": 0,
-      "joinedAt": 1777421510993
+      "joinedAt": 1777421510993,
+      "xReqs": 1
     }
   }
 ]
