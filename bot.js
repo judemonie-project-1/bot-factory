@@ -566,7 +566,9 @@ bot.action(/^show_edit_(.+)$/,async function(ctx){
     reply_markup:{inline_keyboard:[
       [{text:'\u{1F3AF} Quick Setup',callback_data:'ef_setup_'+idx2}],
       [{text:'Ticker: '+(d.ticker||'not set'),callback_data:'ef_ticker_'+idx2},{text:'CA: '+((d.ca||'not set').slice(0,8)+'...'),callback_data:'ef_ca_'+idx2}],
-      [{text:'Twitter/X: '+(d.twitter?'set':'not set'),callback_data:'ef_twitter_'+idx2},{text:'TG: '+(d.tg?'set':'not set'),callback_data:'ef_tg_'+idx2}],
+      [{text:(d.twitter?'\u2705':'')+' Twitter/X: '+(d.twitter?'set':'not set'),callback_data:'ef_twitter_'+idx2},
+     {text:(d.tg?'\u2705':'')+' TG: '+(d.tg?'set':'not set'),callback_data:'ef_tg_'+idx2}],
+    [{text:(d.website?'\u2705':'')+' Website: '+(d.website?'set':'not set'),callback_data:'ef_website_'+idx2}],
       [{text:'Narrative',callback_data:'ef_narrative_'+idx2},{text:'Supply',callback_data:'ef_supply_'+idx2}],
       [{text:'Tax',callback_data:'ef_tax_'+idx2},{text:'Max wallet',callback_data:'ef_maxwallet_'+idx2}],
       [{text:'Renounced: '+(d.renounced||'?'),callback_data:'ef_ren_'+idx2}],
@@ -842,10 +844,10 @@ bot.action(/^epk_(\d+)$/,async function(ctx){
   ]}});
 });
 
-bot.action(/^ef_(ticker|ca|twitter|tg|narrative|supply|tax|maxwallet)_(\d+)$/,async function(ctx){
+bot.action(/^ef_(ticker|ca|twitter|tg|website|narrative|supply|tax|maxwallet)_(\d+)$/,async function(ctx){
   await ctx.answerCbQuery();var field=ctx.match[1],i=parseInt(ctx.match[2]),uid=String(ctx.from.id);
   editSessions[uid]={idx:i,field:field};
-  var asks={ticker:'New ticker symbol (e.g. $MPC  include the $):',ca:'New contract address (CA):',twitter:'New Twitter/X link:',tg:'New Telegram group link (e.g. https://t.me/yourgroup):',narrative:'New narrative (1-2 sentences):',supply:'New supply (e.g. 1B or 1,000,000,000):',tax:'New tax as buy/sell (e.g. 5/5):',maxwallet:'New max wallet % (e.g. 4.9 or - to remove):'};
+  var asks={ticker:'New ticker symbol (e.g. $MPC  include the $):',ca:'New contract address (CA):',twitter:'New Twitter/X link:',tg:'New Telegram group link (e.g. https://t.me/yourgroup):',website:'Website URL (or skip):',narrative:'New narrative (1-2 sentences):',supply:'New supply (e.g. 1B or 1,000,000,000):',tax:'New tax as buy/sell (e.g. 5/5):',maxwallet:'New max wallet % (e.g. 4.9 or - to remove):'};
   try{await ctx.deleteMessage();}catch(_){}
   return ctx.reply(E.pencil+' '+asks[field]);
 });
@@ -1349,6 +1351,7 @@ bot.on('text',async function(ctx){
     b.d=b.d||{};
     if(es.field==='ticker'){var tk=text.trim();if(!tk.startsWith('$'))tk='$'+tk;b.d.ticker=tk.toUpperCase();b.ticker=b.d.ticker;}
     if(es.field==='ticker'){var tk2=text.trim();if(!tk2.startsWith('$'))tk2='$'+tk2;b.d.ticker=tk2.toUpperCase();b.ticker=b.d.ticker;}
+    if(es.field==='website'){var ws3=text.trim();b.d.website=(ws3==='-'||ws3.toLowerCase()==='skip')?'':(ws3.startsWith('http')?ws3:'https://'+ws3);}
     if(es.field==='ca')        b.d.ca=text.trim();
         if(es.field==='twitter')  b.d.twitter=text;
     if(es.field==='tg')       b.d.tg=text.startsWith('http')||text.startsWith('@')?text:'';
