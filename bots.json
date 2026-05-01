@@ -9,9 +9,9 @@
       "shoutoutOn": true
     },
     "analytics": {
-      "messages": 3,
+      "messages": 74,
       "shills": 0,
-      "caReqs": 2,
+      "caReqs": 15,
       "priceReqs": 0,
       "joinedAt": 1775604179857,
       "xReqs": 1
@@ -23,11 +23,11 @@
     "repoName": "-bot-a4e0",
     "state": {
       "caUnlocked": true,
-      "groupChatId": -1003701480279,
+      "groupChatId": -1003794164235,
       "shoutoutOn": true
     },
     "analytics": {
-      "messages": 2,
+      "messages": 3,
       "shills": 0,
       "caReqs": 2,
       "priceReqs": 0,
@@ -45,9 +45,9 @@
       "shoutoutOn": true
     },
     "analytics": {
-      "messages": 3,
+      "messages": 17,
       "shills": 0,
-      "caReqs": 0,
+      "caReqs": 1,
       "priceReqs": 0,
       "joinedAt": 1776300000000
     }
@@ -62,10 +62,10 @@
       "shoutoutOn": true
     },
     "analytics": {
-      "messages": 40,
+      "messages": 369,
       "shills": 0,
-      "caReqs": 9,
-      "priceReqs": 0,
+      "caReqs": 32,
+      "priceReqs": 1,
       "joinedAt": 1776400000000,
       "xReqs": 1
     }
