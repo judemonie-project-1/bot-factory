@@ -9,9 +9,9 @@
       "shoutoutOn": true
     },
     "analytics": {
-      "messages": 74,
+      "messages": 80,
       "shills": 0,
-      "caReqs": 15,
+      "caReqs": 16,
       "priceReqs": 0,
       "joinedAt": 1775604179857,
       "xReqs": 1
@@ -23,13 +23,13 @@
     "repoName": "-bot-a4e0",
     "state": {
       "caUnlocked": true,
-      "groupChatId": -1003794164235,
+      "groupChatId": -1003701480279,
       "shoutoutOn": true
     },
     "analytics": {
-      "messages": 3,
+      "messages": 4,
       "shills": 0,
-      "caReqs": 2,
+      "caReqs": 4,
       "priceReqs": 0,
       "joinedAt": 1776204678002,
       "xReqs": 1
@@ -45,7 +45,7 @@
       "shoutoutOn": true
     },
     "analytics": {
-      "messages": 17,
+      "messages": 18,
       "shills": 0,
       "caReqs": 1,
       "priceReqs": 0,
@@ -62,10 +62,10 @@
       "shoutoutOn": true
     },
     "analytics": {
-      "messages": 369,
-      "shills": 0,
-      "caReqs": 32,
-      "priceReqs": 1,
+      "messages": 1574,
+      "shills": 1,
+      "caReqs": 105,
+      "priceReqs": 2,
       "joinedAt": 1776400000000,
       "xReqs": 1
     }
@@ -82,7 +82,7 @@
     "analytics": {
       "messages": 2,
       "shills": 0,
-      "caReqs": 2,
+      "caReqs": 3,
       "priceReqs": 0,
       "joinedAt": 1777421510993,
       "xReqs": 1
