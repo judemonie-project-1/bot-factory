@@ -242,7 +242,10 @@
       "locked": "LOCKED",
       "silenceBreaker": "3600000",
       "revealCmd": "",
-      "hideCmd": ""
+      "hideCmd": "",
+      "utilityLabel": "Predict and win",
+      "utilityUrl": "https://predict.fwc26.live",
+      "vaultCA": "0x10d6Be966d6d07398b56741DBb50DE0c5FFC050e"
     }
   }
 ]
