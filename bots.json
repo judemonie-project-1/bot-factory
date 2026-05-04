@@ -5,11 +5,11 @@
     "repoName": "mpc-bot-31hk",
     "state": {
       "caUnlocked": true,
-      "groupChatId": -1003701480279,
+      "groupChatId": null,
       "shoutoutOn": true
     },
     "analytics": {
-      "messages": 1,
+      "messages": 0,
       "shills": 0,
       "caReqs": 0,
       "priceReqs": 0,
@@ -22,13 +22,13 @@
     "repoName": "-bot-a4e0",
     "state": {
       "caUnlocked": true,
-      "groupChatId": -1003701480279,
+      "groupChatId": null,
       "shoutoutOn": true
     },
     "analytics": {
-      "messages": 3,
+      "messages": 0,
       "shills": 0,
-      "caReqs": 1,
+      "caReqs": 0,
       "priceReqs": 0,
       "joinedAt": 1776204678002
     }
@@ -39,13 +39,13 @@
     "repoName": "nrise-bot-16y4",
     "state": {
       "caUnlocked": true,
-      "groupChatId": -1003701480279,
+      "groupChatId": null,
       "shoutoutOn": true
     },
     "analytics": {
-      "messages": 3,
+      "messages": 0,
       "shills": 0,
-      "caReqs": 1,
+      "caReqs": 0,
       "priceReqs": 0,
       "joinedAt": 1776300000000
     }
@@ -60,9 +60,9 @@
       "shoutoutOn": true
     },
     "analytics": {
-      "messages": 3,
+      "messages": 1,
       "shills": 0,
-      "caReqs": 1,
+      "caReqs": 0,
       "priceReqs": 0,
       "joinedAt": 1776400000000
     }
@@ -73,13 +73,13 @@
     "repoName": "fwc26-bot-ptaj",
     "state": {
       "caUnlocked": true,
-      "groupChatId": -1003701480279,
+      "groupChatId": null,
       "shoutoutOn": true
     },
     "analytics": {
-      "messages": 14,
+      "messages": 0,
       "shills": 0,
-      "caReqs": 5,
+      "caReqs": 0,
       "priceReqs": 0,
       "joinedAt": 1777421510993
     }
