@@ -43,7 +43,7 @@
       "maxWalletPct": "",
       "renounced": "RENOUNCED",
       "locked": "BURNED",
-      "silenceBreaker": "600000",
+      "silenceBreaker": "3600000",
       "revealCmd": "",
       "hideCmd": ""
     }
