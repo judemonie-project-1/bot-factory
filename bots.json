@@ -39,13 +39,13 @@
     "repoName": "nrise-bot-16y4",
     "state": {
       "caUnlocked": true,
-      "groupChatId": -1003701480279,
+      "groupChatId": -1003954303302,
       "shoutoutOn": true
     },
     "analytics": {
-      "messages": 6,
+      "messages": 7,
       "shills": 0,
-      "caReqs": 1,
+      "caReqs": 2,
       "priceReqs": 1,
       "joinedAt": 1776300000000
     }
