@@ -31,7 +31,12 @@ var BSCSCAN_KEY=process.env.BSCSCAN_API_KEY||'';
 var GH_OWNER=process.env.GH_ORG||process.env.GH_OWNER||'';
 
 var groqPool=[];
-for(var _i=1;_i<=10;_i++){var _k=process.env['GROQ_KEY_'+_i];if(_k)groqPool.push(_k.trim());}
+// No limit on Groq keys -- add as many as you want as GROQ_KEY_1, GROQ_KEY_2, etc.
+for(var _i=1;;_i++){
+  var _k=process.env['GROQ_KEY_'+_i];
+  if(!_k) break; // Stop when a key is missing
+  if(!groqPool.includes(_k.trim()))groqPool.push(_k.trim());
+}
 var groqIdx=0;
 function nextGroq(){if(!groqPool.length)return'';var k=groqPool[groqIdx%groqPool.length];groqIdx++;return k;}
 
