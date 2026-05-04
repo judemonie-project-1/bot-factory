@@ -220,7 +220,8 @@ function saveRegistry(){
           website:b.d.website,narrative:b.d.narrative,supply:b.d.supply,
           buyTax:b.d.buyTax,sellTax:b.d.sellTax,maxWalletPct:b.d.maxWalletPct,
           renounced:b.d.renounced,locked:b.d.locked,silenceBreaker:b.d.silenceBreaker,
-          revealCmd:b.d.revealCmd,hideCmd:b.d.hideCmd
+          revealCmd:b.d.revealCmd,hideCmd:b.d.hideCmd,
+          utilityLabel:b.d.utilityLabel,utilityUrl:b.d.utilityUrl,vaultCA:b.d.vaultCA
         }:{}
       };
       if(c.d.botToken&&typeof c.d.botToken==='string')c.d.botToken=obfuscateToken(c.d.botToken);
@@ -352,7 +353,7 @@ function nextStep(s){
   var skipSteps=(d.stage==='noCA')?['ca','tax','maxwallet','lp']:[];
   var flow=[];
   if(d.mode==='full')
-    flow=['chain','mode','status','stage','pers','rmode','sil','ca','ticker_manual','twitter','tg','website','tax','maxwallet','lp','narrative','img','bottoken'];
+    flow=['chain','mode','status','stage','pers','rmode','sil','ca','ticker_manual','twitter','tg','website','tax','maxwallet','lp','narrative','utility','img','bottoken'];
   else
     flow=['chain','mode','gt','status','stage','sil','ca','ticker_manual','twitter','tg','tax','maxwallet','lp','narrative','img','bottoken'];
   if(isAdd&&!d.renderUrl)flow.push('renderurl');
@@ -380,6 +381,14 @@ async function showStep(ctx,s,uid){
   if(step==='maxwallet')return say(ctx,s,E.pencil+' Max wallet limit?',mwBtns(uid));
   if(step==='lp')      return say(ctx,s,E.pencil+' Is LP (liquidity) locked?',lpBtns(uid));
   if(step==='narrative')return say(ctx,s,E.pencil+' Token narrative?\n<i>1-2 sentences. What makes it unique. Used for AI personality.</i>',skipBtn(uid,'narrative'));
+  if(step==='utility') return say(ctx,s,
+    E.rocket+' <b>Special Utility?</b>\n\n'
+    +'Does this token have a special feature (staking, prediction, game etc)?\n'
+    +'Format: <code>Label | URL | VaultCA</code>\n'
+    +'Example: <code>Predict & Win | https://predict.fwc26.live | 0x10d6Be...</code>\n'
+    +'<i>VaultCA is optional. Type skip if no special utility.</i>',
+    skipBtn(uid,'utility')
+  );
   if(step==='img')     return say(ctx,s,E.pencil+' Send bot image (JPG/PNG)\n<i>This is the image shown with CA and X replies</i>',skipBtn(uid,'img'));
   if(step==='ticker_manual'){
     // Auto-skip if ticker already set from DexScreener
@@ -845,6 +854,8 @@ bot.action(/^epk_(\d+)$/,async function(ctx){
      {text:(d.stage==='noCA'?'\u2705':'')+' No CA',callback_data:'esg_noCA_'+i}],
     [{text:(d.status==='cto'?'\u2705':'')+' CTO',callback_data:'ecto_cto_'+i},
      {text:(d.status!=='cto'?'\u2705':'')+' Active Dev',callback_data:'ecto_dev_'+i}],
+    [{text:(d.website?'\u2705 ':'')+'Website: '+(d.website?'set':'not set'),callback_data:'ef_website_'+i}],
+    [{text:(d.utilityLabel?'\u2705 ':'')+'Special Utility: '+(d.utilityLabel||'none'),callback_data:'ef_utility_'+i}],
     [{text:E.xmark+' Cancel',callback_data:'ecancel'}],
   ]}});
 });
@@ -983,6 +994,32 @@ bot.action(/^ef_cto_(\d+)$/,async function(ctx){
     [{text:E.xmark+' Cancel',callback_data:'ecancel'}],
   ]}});
 });
+// Website edit
+bot.action(/^ef_website_(\d+)$/,async function(ctx){
+  await ctx.answerCbQuery();
+  var i=parseInt(ctx.match[1]),b=registry[i];if(!b)return;
+  editSessions[String(ctx.from.id)]={idx:i,field:'website'};
+  try{await ctx.deleteMessage();}catch(_){}
+  return ctx.reply(E.globe+' Enter website URL:\n<i>e.g. https://yourtoken.xyz\nType skip to clear</i>',{parse_mode:'HTML'});
+});
+
+// Special utility edit
+bot.action(/^ef_utility_(\d+)$/,async function(ctx){
+  await ctx.answerCbQuery();
+  var i=parseInt(ctx.match[1]),b=registry[i];if(!b)return;
+  editSessions[String(ctx.from.id)]={idx:i,field:'utility'};
+  try{await ctx.deleteMessage();}catch(_){}
+  return ctx.reply(
+    E.rocket+' <b>Special Utility Setup</b>\n\n'
+    +'Enter details in this format:\n'
+    +'<code>Label | URL | VaultCA</code>\n\n'
+    +'Example:\n'
+    +'<code>Predict & Win | https://predict.fwc26.live | 0x10d6Be966d...</code>\n\n'
+    +'<i>VaultCA is optional. Type skip to clear.</i>',
+    {parse_mode:'HTML'}
+  );
+});
+
 // Status select buttons
 bot.action(/^ecto_(cto|dev)_(\d+)$/,async function(ctx){
   await ctx.answerCbQuery();
@@ -1354,6 +1391,23 @@ bot.on('text',async function(ctx){
     var b=registry[es.idx];if(!b){delete editSessions[uid];return;}
     try{await ctx.deleteMessage();}catch(_){}
     b.d=b.d||{};
+    if(es.field==='website'){
+      var ws3=text.trim();
+      b.d.website=(ws3==='-'||ws3.toLowerCase()==='skip')?'':(ws3.startsWith('http')?ws3:'https://'+ws3);
+      await pushAndSave(ctx,b,'Website updated');
+      delete editSessions[uid];return;
+    }
+    if(es.field==='utility'){
+      if(text.toLowerCase()==='skip'){b.d.utilityLabel='';b.d.utilityUrl='';b.d.vaultCA='';}
+      else{
+        var parts2=text.split('|').map(function(p){return p.trim();});
+        b.d.utilityLabel=parts2[0]||'';
+        b.d.utilityUrl=parts2[1]||'';
+        b.d.vaultCA=parts2[2]||'';
+      }
+      await pushAndSave(ctx,b,'Utility updated');
+      delete editSessions[uid];return;
+    }
     if(es.field==='ticker'){var tk=text.trim();if(!tk.startsWith('$'))tk='$'+tk;b.d.ticker=tk.toUpperCase();b.ticker=b.d.ticker;}
     if(es.field==='ticker'){var tk2=text.trim();if(!tk2.startsWith('$'))tk2='$'+tk2;b.d.ticker=tk2.toUpperCase();b.ticker=b.d.ticker;}
     if(es.field==='website'){var ws3=text.trim();b.d.website=(ws3==='-'||ws3.toLowerCase()==='skip')?'':(ws3.startsWith('http')?ws3:'https://'+ws3);}
