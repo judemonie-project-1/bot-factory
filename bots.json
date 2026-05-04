@@ -22,11 +22,11 @@
     "repoName": "-bot-a4e0",
     "state": {
       "caUnlocked": true,
-      "groupChatId": null,
+      "groupChatId": -1003701480279,
       "shoutoutOn": true
     },
     "analytics": {
-      "messages": 0,
+      "messages": 1,
       "shills": 0,
       "caReqs": 0,
       "priceReqs": 0,
@@ -39,11 +39,11 @@
     "repoName": "nrise-bot-16y4",
     "state": {
       "caUnlocked": true,
-      "groupChatId": null,
+      "groupChatId": -1003701480279,
       "shoutoutOn": true
     },
     "analytics": {
-      "messages": 0,
+      "messages": 1,
       "shills": 0,
       "caReqs": 0,
       "priceReqs": 0,
@@ -73,11 +73,11 @@
     "repoName": "fwc26-bot-ptaj",
     "state": {
       "caUnlocked": true,
-      "groupChatId": null,
+      "groupChatId": -1003701480279,
       "shoutoutOn": true
     },
     "analytics": {
-      "messages": 0,
+      "messages": 1,
       "shills": 0,
       "caReqs": 0,
       "priceReqs": 0,
