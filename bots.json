@@ -5,16 +5,15 @@
     "repoName": "mpc-bot-31hk",
     "state": {
       "caUnlocked": true,
-      "groupChatId": -1003824009208,
+      "groupChatId": null,
       "shoutoutOn": true
     },
     "analytics": {
-      "messages": 83,
+      "messages": 0,
       "shills": 0,
-      "caReqs": 17,
+      "caReqs": 0,
       "priceReqs": 0,
-      "joinedAt": 1775604179857,
-      "xReqs": 2
+      "joinedAt": 1775604179857
     }
   },
   {
@@ -23,16 +22,15 @@
     "repoName": "-bot-a4e0",
     "state": {
       "caUnlocked": true,
-      "groupChatId": -1003701480279,
+      "groupChatId": null,
       "shoutoutOn": true
     },
     "analytics": {
-      "messages": 5,
+      "messages": 0,
       "shills": 0,
-      "caReqs": 4,
+      "caReqs": 0,
       "priceReqs": 0,
-      "joinedAt": 1776204678002,
-      "xReqs": 2
+      "joinedAt": 1776204678002
     }
   },
   {
@@ -41,13 +39,13 @@
     "repoName": "nrise-bot-16y4",
     "state": {
       "caUnlocked": true,
-      "groupChatId": -1003954303302,
+      "groupChatId": null,
       "shoutoutOn": true
     },
     "analytics": {
-      "messages": 18,
+      "messages": 0,
       "shills": 0,
-      "caReqs": 1,
+      "caReqs": 0,
       "priceReqs": 0,
       "joinedAt": 1776300000000
     }
@@ -62,12 +60,11 @@
       "shoutoutOn": true
     },
     "analytics": {
-      "messages": 1595,
-      "shills": 1,
-      "caReqs": 106,
-      "priceReqs": 2,
-      "joinedAt": 1776400000000,
-      "xReqs": 2
+      "messages": 1,
+      "shills": 0,
+      "caReqs": 0,
+      "priceReqs": 0,
+      "joinedAt": 1776400000000
     }
   },
   {
@@ -76,16 +73,15 @@
     "repoName": "fwc26-bot-ptaj",
     "state": {
       "caUnlocked": true,
-      "groupChatId": -1003701480279,
+      "groupChatId": null,
       "shoutoutOn": true
     },
     "analytics": {
-      "messages": 4,
+      "messages": 0,
       "shills": 0,
-      "caReqs": 4,
+      "caReqs": 0,
       "priceReqs": 0,
-      "joinedAt": 1777421510993,
-      "xReqs": 2
+      "joinedAt": 1777421510993
     }
   }
 ]
