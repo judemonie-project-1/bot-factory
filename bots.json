@@ -5,13 +5,13 @@
     "repoName": "mpc-bot-31hk",
     "state": {
       "caUnlocked": true,
-      "groupChatId": null,
+      "groupChatId": -1003701480279,
       "shoutoutOn": true
     },
     "analytics": {
-      "messages": 0,
+      "messages": 3,
       "shills": 0,
-      "caReqs": 0,
+      "caReqs": 1,
       "priceReqs": 0,
       "joinedAt": 1775604179857
     }
@@ -26,9 +26,9 @@
       "shoutoutOn": true
     },
     "analytics": {
-      "messages": 1,
+      "messages": 3,
       "shills": 0,
-      "caReqs": 0,
+      "caReqs": 1,
       "priceReqs": 0,
       "joinedAt": 1776204678002
     }
@@ -43,9 +43,9 @@
       "shoutoutOn": true
     },
     "analytics": {
-      "messages": 1,
+      "messages": 3,
       "shills": 0,
-      "caReqs": 0,
+      "caReqs": 1,
       "priceReqs": 0,
       "joinedAt": 1776300000000
     }
@@ -56,13 +56,13 @@
     "repoName": "httpsxcomcakepnutcto-bot-j7i8",
     "state": {
       "caUnlocked": true,
-      "groupChatId": -1003701480279,
+      "groupChatId": -1003838128091,
       "shoutoutOn": true
     },
     "analytics": {
-      "messages": 1,
+      "messages": 4,
       "shills": 0,
-      "caReqs": 0,
+      "caReqs": 1,
       "priceReqs": 0,
       "joinedAt": 1776400000000
     }
@@ -77,9 +77,9 @@
       "shoutoutOn": true
     },
     "analytics": {
-      "messages": 1,
+      "messages": 4,
       "shills": 0,
-      "caReqs": 0,
+      "caReqs": 1,
       "priceReqs": 0,
       "joinedAt": 1777421510993
     }
