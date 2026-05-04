@@ -22,13 +22,13 @@
     "repoName": "-bot-a4e0",
     "state": {
       "caUnlocked": true,
-      "groupChatId": -1003701480279,
+      "groupChatId": -1003794164235,
       "shoutoutOn": true
     },
     "analytics": {
-      "messages": 6,
+      "messages": 7,
       "shills": 0,
-      "caReqs": 1,
+      "caReqs": 2,
       "priceReqs": 1,
       "joinedAt": 1776204678002
     }
@@ -60,7 +60,7 @@
       "shoutoutOn": true
     },
     "analytics": {
-      "messages": 25,
+      "messages": 31,
       "shills": 0,
       "caReqs": 2,
       "priceReqs": 1,
