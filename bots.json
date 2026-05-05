@@ -5,11 +5,11 @@
     "repoName": "mpc-bot-31hk",
     "state": {
       "caUnlocked": true,
-      "groupChatId": -1003701480279,
+      "groupChatId": -1003824009208,
       "shoutoutOn": true
     },
     "analytics": {
-      "messages": 21,
+      "messages": 22,
       "shills": 0,
       "caReqs": 4,
       "priceReqs": 1,
@@ -60,9 +60,9 @@
       "shoutoutOn": true
     },
     "analytics": {
-      "messages": 209,
+      "messages": 225,
       "shills": 0,
-      "caReqs": 11,
+      "caReqs": 14,
       "priceReqs": 1,
       "joinedAt": 1776400000000
     }
