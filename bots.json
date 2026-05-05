@@ -26,7 +26,7 @@
       "shoutoutOn": true
     },
     "analytics": {
-      "messages": 9,
+      "messages": 10,
       "shills": 0,
       "caReqs": 2,
       "priceReqs": 1,
@@ -60,9 +60,9 @@
       "shoutoutOn": true
     },
     "analytics": {
-      "messages": 71,
+      "messages": 170,
       "shills": 0,
-      "caReqs": 4,
+      "caReqs": 10,
       "priceReqs": 1,
       "joinedAt": 1776400000000
     }
