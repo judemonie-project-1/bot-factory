@@ -9,9 +9,9 @@
       "shoutoutOn": true
     },
     "analytics": {
-      "messages": 22,
+      "messages": 29,
       "shills": 0,
-      "caReqs": 4,
+      "caReqs": 8,
       "priceReqs": 1,
       "joinedAt": 1775604179857
     }
@@ -43,7 +43,7 @@
       "shoutoutOn": true
     },
     "analytics": {
-      "messages": 12,
+      "messages": 13,
       "shills": 0,
       "caReqs": 2,
       "priceReqs": 1,
@@ -60,9 +60,9 @@
       "shoutoutOn": true
     },
     "analytics": {
-      "messages": 225,
-      "shills": 0,
-      "caReqs": 14,
+      "messages": 322,
+      "shills": 1,
+      "caReqs": 29,
       "priceReqs": 1,
       "joinedAt": 1776400000000
     }
