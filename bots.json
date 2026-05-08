@@ -90,13 +90,13 @@
     "repoName": "coded-bot-1xru",
     "state": {
       "caUnlocked": true,
-      "groupChatId": -1003701480279,
+      "groupChatId": -1003940144563,
       "shoutoutOn": true
     },
     "analytics": {
-      "messages": 4,
-      "shills": 0,
-      "caReqs": 3,
+      "messages": 32,
+      "shills": 1,
+      "caReqs": 25,
       "priceReqs": 0,
       "joinedAt": 1778272129102
     }
