@@ -670,6 +670,71 @@ bot.command('bots',function(ctx){ownerChatIds.add(ctx.chat.id);
   return ctx.reply(msg,{parse_mode:'HTML',disable_web_page_preview:true});
 });
 
+// /delete  list all bots, tap one to delete with confirmation
+bot.command(['delete','remove','del'],function(ctx){
+  ownerChatIds.add(ctx.chat.id);
+  if(!registry.length)return ctx.reply(E.list+' No bots to delete.');
+  var rows=[];
+  registry.forEach(function(b,i){
+    var tk=b.ticker||(b.d&&b.d.ticker)||(b.d&&b.d.name)||('Bot '+(i+1));
+    rows.push([{text:'\u{1F5D1}\uFE0F '+tk+'  ('+(b.chain||'bsc').toUpperCase()+')',callback_data:'del_pick_'+i}]);
+  });
+  rows.push([{text:E.xmark+' Cancel',callback_data:'del_cancel'}]);
+  return ctx.reply(
+    '\u{1F5D1}\uFE0F <b>Delete a Bot</b>\n\n'+
+    'Tap the bot you want to remove. You will be asked to confirm before anything is deleted.',
+    {parse_mode:'HTML',reply_markup:{inline_keyboard:rows}}
+  );
+});
+
+bot.action('del_cancel',async function(ctx){
+  await ctx.answerCbQuery();
+  try{await ctx.deleteMessage();}catch(_){}
+  return ctx.reply(E.xmark+' Cancelled.');
+});
+
+bot.action(/^del_pick_(\d+)$/,async function(ctx){
+  await ctx.answerCbQuery();
+  var i=parseInt(ctx.match[1]),b=registry[i];
+  if(!b){try{await ctx.deleteMessage();}catch(_){};return ctx.reply(E.warn+' Bot not found.');}
+  var tk=b.ticker||(b.d&&b.d.ticker)||'this bot';
+  try{await ctx.deleteMessage();}catch(_){}
+  return ctx.reply(
+    '\u26A0\uFE0F <b>Confirm Deletion</b>\n\n'+
+    'You are about to remove <b>'+tk+'</b> from the supervisor.\n\n'+
+    '\u2022 Bot will go offline immediately after reload\n'+
+    '\u2022 Entry removed from registry.json\n'+
+    '\u2022 GitHub repo and Telegram bot token are kept (rebuild anytime with /build)\n\n'+
+    'Are you sure?',
+    {parse_mode:'HTML',reply_markup:{inline_keyboard:[
+      [{text:'\u{1F5D1}\uFE0F Yes, delete '+tk,callback_data:'del_confirm_'+i}],
+      [{text:E.xmark+' Cancel',callback_data:'del_cancel'}],
+    ]}}
+  );
+});
+
+bot.action(/^del_confirm_(\d+)$/,async function(ctx){
+  await ctx.answerCbQuery();
+  var i=parseInt(ctx.match[1]),b=registry[i];
+  if(!b){try{await ctx.deleteMessage();}catch(_){};return ctx.reply(E.warn+' Bot not found (already deleted?).');}
+  var tk=b.ticker||(b.d&&b.d.ticker)||'Bot';
+  var repoNm=b.repoName;
+  var ghOw=b.ghOwner;
+  var idVal=b.id;
+  registry.splice(i,1);
+  saveRegistry();
+  // Mark deleted in bots.json so supervisor stops the instance
+  syncToBotsJson({id:idVal,ticker:tk,repoName:repoNm,ghOwner:ghOw,status:'deleted',state:{},analytics:{}}).catch(function(){});
+  await signalReload();
+  try{await ctx.deleteMessage();}catch(_){}
+  return ctx.reply(
+    E.check+' <b>'+tk+'</b> deleted.\n\n'+
+    E.clock+' Supervisor reloading. Bot will be offline in ~5 seconds.\n\n'+
+    '<i>Rebuild anytime with /build using the same token.</i>',
+    {parse_mode:'HTML'}
+  );
+});
+
 bot.command('stats',async function(ctx){
   ownerChatIds.add(ctx.chat.id);
   if(!registry.length)return ctx.reply(E.chart+' No bots yet. Use /build.');
