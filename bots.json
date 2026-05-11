@@ -9,9 +9,9 @@
       "shoutoutOn": true
     },
     "analytics": {
-      "messages": 2,
+      "messages": 0,
       "shills": 0,
-      "caReqs": 1,
+      "caReqs": 0,
       "priceReqs": 0,
       "joinedAt": 1775604179857
     }
@@ -56,11 +56,11 @@
     "repoName": "httpsxcomcakepnutcto-bot-j7i8",
     "state": {
       "caUnlocked": true,
-      "groupChatId": -1003838128091,
+      "groupChatId": null,
       "shoutoutOn": true
     },
     "analytics": {
-      "messages": 1,
+      "messages": 0,
       "shills": 0,
       "caReqs": 0,
       "priceReqs": 0,
@@ -90,13 +90,13 @@
     "repoName": "coded-bot-1xru",
     "state": {
       "caUnlocked": true,
-      "groupChatId": -1003701480279,
+      "groupChatId": null,
       "shoutoutOn": true
     },
     "analytics": {
-      "messages": 5,
+      "messages": 0,
       "shills": 0,
-      "caReqs": 1,
+      "caReqs": 0,
       "priceReqs": 0,
       "joinedAt": 1778272129102
     }
@@ -111,7 +111,7 @@
       "shoutoutOn": true
     },
     "analytics": {
-      "messages": 13,
+      "messages": 1,
       "shills": 0,
       "caReqs": 0,
       "priceReqs": 0,
