@@ -249,55 +249,6 @@
     }
   },
   {
-    "id": "coded-bot-1xru",
-    "ticker": "$CODED",
-    "chain": "bsc",
-    "mode": "full",
-    "repoName": "coded-bot-1xru",
-    "ghOwner": "judemonie-project-1",
-    "status": "active",
-    "builtAt": 1778272129102,
-    "state": {
-      "caUnlocked": true,
-      "groupChatId": null,
-      "shoutoutOn": true
-    },
-    "analytics": {
-      "messages": 0,
-      "shills": 0,
-      "caReqs": 0,
-      "priceReqs": 0,
-      "joinedAt": 1778272129102
-    },
-    "d": {
-      "botToken": {
-        "_a": "8607655092",
-        "_b": "AAHYUNeb8l-8s8-2HTUVJqrnqnml1i_nnjc"
-      },
-      "chain": "bsc",
-      "mode": "full",
-      "status": "cto",
-      "stage": "live",
-      "personality": "community",
-      "responseMode": "conversational",
-      "name": "CODED",
-      "ticker": "$CODED",
-      "ca": "0xeFA54451b73B5eB8701b8Df4feDEfD615c274444",
-      "twitter": "https://x.com/coded_cto7",
-      "tg": "https://t.me/coded_CTO2",
-      "narrative": "$CODED CTO is a community-driven meme coin on the BNB Smart Chain built for believers who know the next big move is already coded. Powered by pure community takeover energy, strong meme culture, and relentless holders, $CODED represents conviction, bullish",
-      "supply": "1,000,254,582",
-      "buyTax": "0",
-      "sellTax": "0",
-      "maxWalletPct": "",
-      "renounced": "",
-      "locked": "BURNED",
-      "silenceBreaker": "3600000",
-      "revealCmd": "",
-      "hideCmd": ""
-    }
-  },
-  {
     "id": "fwc-bot-mfxd",
     "ticker": "$FWC",
     "chain": "bsc",
