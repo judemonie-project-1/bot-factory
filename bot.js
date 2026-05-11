@@ -857,6 +857,7 @@ bot.action(/^epk_(\d+)$/,async function(ctx){
     [{text:(d.website?'\u2705 ':'')+'Website: '+(d.website?'set':'not set'),callback_data:'ef_website_'+i}],
     [{text:(d.utilityLabel?'\u2705 ':'')+'Special Utility: '+(d.utilityLabel||'none'),callback_data:'ef_utility_'+i}],
     [{text:E.xmark+' Cancel',callback_data:'ecancel'}],
+    [{text:'\u{1F5D1}\uFE0F Delete this bot',callback_data:'ef_delete_'+i}],
   ]}});
 });
 
@@ -1027,6 +1028,32 @@ bot.action(/^ecto_(cto|dev)_(\d+)$/,async function(ctx){
   b.d=b.d||{};b.d.status=ctx.match[1]==='cto'?'cto':'launch';
   try{await ctx.deleteMessage();}catch(_){}
   await pushAndSave(ctx,b,'Status set to '+(b.d.status==='cto'?'CTO':'Active Dev'));
+});
+
+// Delete bot handler
+bot.action(/^ef_delete_(\d+)$/,async function(ctx){
+  await ctx.answerCbQuery();
+  var i=parseInt(ctx.match[1]),b=registry[i];if(!b)return;
+  try{await ctx.deleteMessage();}catch(_){}
+  return ctx.reply(
+    E.warn+' <b>Delete '+b.ticker+'?</b>\n\nThis removes the bot from the supervisor.\nThe GitHub repo will remain unless you delete it manually.',
+    {parse_mode:'HTML',reply_markup:{inline_keyboard:[
+      [{text:'\u{1F5D1}\uFE0F Yes, delete '+b.ticker,callback_data:'ef_confirmdelete_'+i}],
+      [{text:'\u274C Cancel',callback_data:'ecancel'}],
+    ]}}
+  );
+});
+bot.action(/^ef_confirmdelete_(\d+)$/,async function(ctx){
+  await ctx.answerCbQuery();
+  var i=parseInt(ctx.match[1]),b=registry[i];if(!b)return;
+  var ticker=b.ticker;
+  registry.splice(i,1);
+  saveRegistry();
+  var entry=registry.find(function(x){return x.repoName===b.repoName;});
+  if(!entry)syncToBotsJson({id:b.id,ticker:b.ticker,repoName:b.repoName,ghOwner:b.ghOwner,status:'deleted',state:{},analytics:{}}).catch(function(){});
+  await signalReload();
+  try{await ctx.deleteMessage();}catch(_){}
+  return ctx.reply(E.check+' <b>'+ticker+'</b> removed.\n\nBot is offline. Add it back anytime with /build.',{parse_mode:'HTML'});
 });
 
 bot.action('ecancel',async function(ctx){
