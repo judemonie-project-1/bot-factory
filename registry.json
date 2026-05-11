@@ -291,7 +291,7 @@
       "buyTax": "5",
       "sellTax": "5",
       "maxWalletPct": "",
-      "renounced": "PENDING",
+      "renounced": "RENOUNCED",
       "locked": "PENDING",
       "silenceBreaker": "3600000",
       "revealCmd": "",
