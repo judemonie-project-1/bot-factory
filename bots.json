@@ -5,13 +5,13 @@
     "repoName": "mpc-bot-31hk",
     "state": {
       "caUnlocked": true,
-      "groupChatId": -1003824009208,
+      "groupChatId": null,
       "shoutoutOn": true
     },
     "analytics": {
-      "messages": 0,
+      "messages": 2,
       "shills": 0,
-      "caReqs": 0,
+      "caReqs": 1,
       "priceReqs": 0,
       "joinedAt": 1775604179857
     }
@@ -94,9 +94,9 @@
       "shoutoutOn": true
     },
     "analytics": {
-      "messages": 2,
+      "messages": 5,
       "shills": 0,
-      "caReqs": 0,
+      "caReqs": 1,
       "priceReqs": 0,
       "joinedAt": 1778272129102
     }
@@ -107,11 +107,11 @@
     "repoName": "fwc-bot-mfxd",
     "state": {
       "caUnlocked": false,
-      "groupChatId": -1003701480279,
+      "groupChatId": -1003797329661,
       "shoutoutOn": true
     },
     "analytics": {
-      "messages": 4,
+      "messages": 10,
       "shills": 0,
       "caReqs": 0,
       "priceReqs": 0,
