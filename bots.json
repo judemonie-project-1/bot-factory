@@ -56,11 +56,11 @@
     "repoName": "httpsxcomcakepnutcto-bot-j7i8",
     "state": {
       "caUnlocked": true,
-      "groupChatId": null,
+      "groupChatId": -1003838128091,
       "shoutoutOn": true
     },
     "analytics": {
-      "messages": 0,
+      "messages": 1,
       "shills": 0,
       "caReqs": 0,
       "priceReqs": 0,
@@ -111,7 +111,7 @@
       "shoutoutOn": true
     },
     "analytics": {
-      "messages": 11,
+      "messages": 13,
       "shills": 0,
       "caReqs": 0,
       "priceReqs": 0,
