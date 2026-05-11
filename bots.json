@@ -85,23 +85,6 @@
     }
   },
   {
-    "id": "coded-bot-1xru",
-    "ticker": "$CODED",
-    "repoName": "coded-bot-1xru",
-    "state": {
-      "caUnlocked": true,
-      "groupChatId": null,
-      "shoutoutOn": true
-    },
-    "analytics": {
-      "messages": 0,
-      "shills": 0,
-      "caReqs": 0,
-      "priceReqs": 0,
-      "joinedAt": 1778272129102
-    }
-  },
-  {
     "id": "fwc-bot-mfxd",
     "ticker": "$FWC",
     "repoName": "fwc-bot-mfxd",
