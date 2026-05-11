@@ -5,119 +5,6 @@
     "repoName": "mpc-bot-31hk",
     "state": {
       "caUnlocked": true,
-      "groupChatId": -1003824009208,
-      "shoutoutOn": true
-    },
-    "analytics": {
-      "messages": 41,
-      "shills": 0,
-      "caReqs": 9,
-      "priceReqs": 1,
-      "joinedAt": 1775604179857
-    },
-    "d": {}
-  },
-  {
-    "id": "-bot-a4e0",
-    "ticker": "$ACRT",
-    "repoName": "-bot-a4e0",
-    "state": {
-      "caUnlocked": true,
-      "groupChatId": -1003794164235,
-      "shoutoutOn": true
-    },
-    "analytics": {
-      "messages": 15,
-      "shills": 0,
-      "caReqs": 3,
-      "priceReqs": 1,
-      "joinedAt": 1776204678002
-    },
-    "d": {}
-  },
-  {
-    "id": "nrise-bot-16y4",
-    "ticker": "$NRISE",
-    "repoName": "nrise-bot-16y4",
-    "state": {
-      "caUnlocked": true,
-      "groupChatId": -1003954303302,
-      "shoutoutOn": true
-    },
-    "analytics": {
-      "messages": 13,
-      "shills": 0,
-      "caReqs": 2,
-      "priceReqs": 1,
-      "joinedAt": 1776300000000
-    },
-    "d": {}
-  },
-  {
-    "id": "httpsxcomcakepnutcto-bot-j7i8",
-    "ticker": "$CAKEPNUT",
-    "repoName": "httpsxcomcakepnutcto-bot-j7i8",
-    "state": {
-      "caUnlocked": true,
-      "groupChatId": -1003838128091,
-      "shoutoutOn": true
-    },
-    "analytics": {
-      "messages": 362,
-      "shills": 1,
-      "caReqs": 40,
-      "priceReqs": 1,
-      "joinedAt": 1776400000000
-    },
-    "d": {}
-  },
-  {
-    "id": "fwc26-bot-ptaj",
-    "ticker": "$FWC26",
-    "repoName": "fwc26-bot-ptaj",
-    "state": {
-      "caUnlocked": true,
-      "groupChatId": -1003701480279,
-      "shoutoutOn": true
-    },
-    "analytics": {
-      "messages": 19,
-      "shills": 0,
-      "caReqs": 3,
-      "priceReqs": 4,
-      "joinedAt": 1777421510993
-    },
-    "d": {}
-  },
-  {
-    "id": "coded-bot-1xru",
-    "ticker": "$CODED",
-    "repoName": "coded-bot-1xru",
-    "state": {
-      "caUnlocked": true,
-      "groupChatId": -1003940144563,
-      "shoutoutOn": true
-    },
-    "analytics": {
-      "messages": 88,
-      "shills": 1,
-      "caReqs": 31,
-      "priceReqs": 0,
-      "joinedAt": 1778272129102
-    },
-    "d": {}
-  },
-  {
-    "id": "fwc-bot-mfxd",
-    "ticker": "$FWC",
-    "chain": "bsc",
-    "mode": "full",
-    "repoName": "fwc-bot-mfxd",
-    "ghOwner": "judemonie-project-1",
-    "status": "active",
-    "builtAt": 1778311745378,
-    "state": {
-      "caUnlocked": false,
       "groupChatId": null,
       "shoutoutOn": true
     },
@@ -126,35 +13,109 @@
       "shills": 0,
       "caReqs": 0,
       "priceReqs": 0,
-      "joinedAt": 1778311745378
+      "joinedAt": 1775604179857
+    }
+  },
+  {
+    "id": "-bot-a4e0",
+    "ticker": "$ACRT",
+    "repoName": "-bot-a4e0",
+    "state": {
+      "caUnlocked": true,
+      "groupChatId": null,
+      "shoutoutOn": true
     },
-    "d": {
-      "botToken": {
-        "_a": "8626902075",
-        "_b": "AAFc4AabI0rn9oxmuax9UyA8bgSOsUMXGgI"
-      },
-      "chain": "bsc",
-      "mode": "full",
-      "status": "launch",
-      "stage": "noCA",
-      "personality": "professional",
-      "responseMode": "conversational",
-      "name": "FWC",
-      "ticker": "$FWC",
-      "ca": "TBA",
-      "twitter": "https://x.com/fwcglobal26",
-      "tg": "https://t.me/FWCbscGlobal",
-      "website": "https://fifa26.website",
-      "narrative": "⚽ Welcome to FWC GLOBAL\nWe’re glad to have you here.\nFWC GLOBAL is a football-driven community built on BSC, focused on bringing together football culture, global fans, and blockchain engagement in one ecosystem.\nThis is an early-stage community, and everything here is built around participation, culture, and long-term vision.\n🌍 Football. Fans. Culture. On-chain.\nPlease stay active, respect others, and be part of the journey as we grow together.\nMore updates coming soon ⚽🔥",
-      "supply": "N/A",
-      "buyTax": "0",
-      "sellTax": "0",
-      "maxWalletPct": "",
-      "renounced": "PENDING",
-      "locked": "PENDING",
-      "silenceBreaker": "3600000",
-      "revealCmd": "",
-      "hideCmd": ""
+    "analytics": {
+      "messages": 0,
+      "shills": 0,
+      "caReqs": 0,
+      "priceReqs": 0,
+      "joinedAt": 1776204678002
+    }
+  },
+  {
+    "id": "nrise-bot-16y4",
+    "ticker": "$NRISE",
+    "repoName": "nrise-bot-16y4",
+    "state": {
+      "caUnlocked": true,
+      "groupChatId": null,
+      "shoutoutOn": true
+    },
+    "analytics": {
+      "messages": 0,
+      "shills": 0,
+      "caReqs": 0,
+      "priceReqs": 0,
+      "joinedAt": 1776300000000
+    }
+  },
+  {
+    "id": "httpsxcomcakepnutcto-bot-j7i8",
+    "ticker": "$CAKEPNUT",
+    "repoName": "httpsxcomcakepnutcto-bot-j7i8",
+    "state": {
+      "caUnlocked": true,
+      "groupChatId": null,
+      "shoutoutOn": true
+    },
+    "analytics": {
+      "messages": 0,
+      "shills": 0,
+      "caReqs": 0,
+      "priceReqs": 0,
+      "joinedAt": 1776400000000
+    }
+  },
+  {
+    "id": "fwc26-bot-ptaj",
+    "ticker": "$FWC26",
+    "repoName": "fwc26-bot-ptaj",
+    "state": {
+      "caUnlocked": true,
+      "groupChatId": null,
+      "shoutoutOn": true
+    },
+    "analytics": {
+      "messages": 0,
+      "shills": 0,
+      "caReqs": 0,
+      "priceReqs": 0,
+      "joinedAt": 1777421510993
+    }
+  },
+  {
+    "id": "coded-bot-1xru",
+    "ticker": "$CODED",
+    "repoName": "coded-bot-1xru",
+    "state": {
+      "caUnlocked": true,
+      "groupChatId": null,
+      "shoutoutOn": true
+    },
+    "analytics": {
+      "messages": 0,
+      "shills": 0,
+      "caReqs": 0,
+      "priceReqs": 0,
+      "joinedAt": 1778272129102
+    }
+  },
+  {
+    "id": "fwc-bot-mfxd",
+    "ticker": "$FWC",
+    "repoName": "fwc-bot-mfxd",
+    "state": {
+      "caUnlocked": false,
+      "groupChatId": -1003797329661,
+      "shoutoutOn": true
+    },
+    "analytics": {
+      "messages": 1,
+      "shills": 0,
+      "caReqs": 0,
+      "priceReqs": 0,
+      "joinedAt": 1778311745378
     }
   }
 ]
