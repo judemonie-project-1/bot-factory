@@ -90,11 +90,11 @@
     "repoName": "coded-bot-1xru",
     "state": {
       "caUnlocked": true,
-      "groupChatId": null,
+      "groupChatId": -1003701480279,
       "shoutoutOn": true
     },
     "analytics": {
-      "messages": 0,
+      "messages": 1,
       "shills": 0,
       "caReqs": 0,
       "priceReqs": 0,
@@ -107,11 +107,11 @@
     "repoName": "fwc-bot-mfxd",
     "state": {
       "caUnlocked": false,
-      "groupChatId": -1003797329661,
+      "groupChatId": null,
       "shoutoutOn": true
     },
     "analytics": {
-      "messages": 1,
+      "messages": 6,
       "shills": 0,
       "caReqs": 0,
       "priceReqs": 0,
