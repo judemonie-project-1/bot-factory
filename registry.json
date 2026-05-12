@@ -297,7 +297,7 @@
       "revealCmd": "",
       "hideCmd": "",
       "morningOn": true,
-      "replyMode": "conversational"
+      "replyMode": "question"
     }
   }
 ]
