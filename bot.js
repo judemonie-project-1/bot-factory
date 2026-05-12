@@ -72,6 +72,7 @@ var bot=new Telegraf(BOT_TOKEN);
 var app=express();
 app.use(express.json());
 var registry=[],registryReady=false,sessions={},editSessions={},groqSessions={},ownerChatIds=new Set();
+var pendingApply=new Set(); // bot indices with staged-but-not-applied changes
 
 //  HELPERS 
 function rnd(n){var c='abcdefghijklmnopqrstuvwxyz0123456789',o='';for(var i=0;i<n;i++)o+=c[Math.floor(Math.random()*c.length)];return o;}
@@ -670,69 +671,18 @@ bot.command('bots',function(ctx){ownerChatIds.add(ctx.chat.id);
   return ctx.reply(msg,{parse_mode:'HTML',disable_web_page_preview:true});
 });
 
-// /delete  list all bots, tap one to delete with confirmation
+// /delete  list bots with delete buttons (delete = remove from registry, supervisor stops the bot)
 bot.command(['delete','remove','del'],function(ctx){
   ownerChatIds.add(ctx.chat.id);
   if(!registry.length)return ctx.reply(E.list+' No bots to delete.');
   var rows=[];
   registry.forEach(function(b,i){
-    var tk=b.ticker||(b.d&&b.d.ticker)||(b.d&&b.d.name)||('Bot '+(i+1));
-    rows.push([{text:'\u{1F5D1}\uFE0F '+tk+'  ('+(b.chain||'bsc').toUpperCase()+')',callback_data:'del_pick_'+i}]);
+    var tk=b.ticker||(b.d&&b.d.ticker)||('Bot '+(i+1));
+    rows.push([{text:'\u{1F5D1}\uFE0F '+tk,callback_data:'ef_delete_'+i}]);
   });
-  rows.push([{text:E.xmark+' Cancel',callback_data:'del_cancel'}]);
-  return ctx.reply(
-    '\u{1F5D1}\uFE0F <b>Delete a Bot</b>\n\n'+
-    'Tap the bot you want to remove. You will be asked to confirm before anything is deleted.',
-    {parse_mode:'HTML',reply_markup:{inline_keyboard:rows}}
-  );
-});
-
-bot.action('del_cancel',async function(ctx){
-  await ctx.answerCbQuery();
-  try{await ctx.deleteMessage();}catch(_){}
-  return ctx.reply(E.xmark+' Cancelled.');
-});
-
-bot.action(/^del_pick_(\d+)$/,async function(ctx){
-  await ctx.answerCbQuery();
-  var i=parseInt(ctx.match[1]),b=registry[i];
-  if(!b){try{await ctx.deleteMessage();}catch(_){};return ctx.reply(E.warn+' Bot not found.');}
-  var tk=b.ticker||(b.d&&b.d.ticker)||'this bot';
-  try{await ctx.deleteMessage();}catch(_){}
-  return ctx.reply(
-    '\u26A0\uFE0F <b>Confirm Deletion</b>\n\n'+
-    'You are about to remove <b>'+tk+'</b> from the supervisor.\n\n'+
-    '\u2022 Bot will go offline immediately after reload\n'+
-    '\u2022 Entry removed from registry.json\n'+
-    '\u2022 GitHub repo and Telegram bot token are kept (rebuild anytime with /build)\n\n'+
-    'Are you sure?',
-    {parse_mode:'HTML',reply_markup:{inline_keyboard:[
-      [{text:'\u{1F5D1}\uFE0F Yes, delete '+tk,callback_data:'del_confirm_'+i}],
-      [{text:E.xmark+' Cancel',callback_data:'del_cancel'}],
-    ]}}
-  );
-});
-
-bot.action(/^del_confirm_(\d+)$/,async function(ctx){
-  await ctx.answerCbQuery();
-  var i=parseInt(ctx.match[1]),b=registry[i];
-  if(!b){try{await ctx.deleteMessage();}catch(_){};return ctx.reply(E.warn+' Bot not found (already deleted?).');}
-  var tk=b.ticker||(b.d&&b.d.ticker)||'Bot';
-  var repoNm=b.repoName;
-  var ghOw=b.ghOwner;
-  var idVal=b.id;
-  registry.splice(i,1);
-  saveRegistry();
-  // Mark deleted in bots.json so supervisor stops the instance
-  syncToBotsJson({id:idVal,ticker:tk,repoName:repoNm,ghOwner:ghOw,status:'deleted',state:{},analytics:{}}).catch(function(){});
-  await signalReload();
-  try{await ctx.deleteMessage();}catch(_){}
-  return ctx.reply(
-    E.check+' <b>'+tk+'</b> deleted.\n\n'+
-    E.clock+' Supervisor reloading. Bot will be offline in ~5 seconds.\n\n'+
-    '<i>Rebuild anytime with /build using the same token.</i>',
-    {parse_mode:'HTML'}
-  );
+  rows.push([{text:E.xmark+' Cancel',callback_data:'ecancel'}]);
+  return ctx.reply('\u{1F5D1}\uFE0F <b>Delete a Bot</b>\n\nTap the bot to remove. You will be asked to confirm.',
+    {parse_mode:'HTML',reply_markup:{inline_keyboard:rows}});
 });
 
 bot.command('stats',async function(ctx){
@@ -895,9 +845,15 @@ bot.action(/^epk_(\d+)$/,async function(ctx){
   if(!b)return ctx.reply('Not found.');
   var uid=String(ctx.from.id);delete sessions[uid];editSessions[uid]={idx:i};
   var d=b.d||{};
+  var hasPending=pendingApply.has(i);
+  var pendingTotal=pendingApply.size;
   try{await ctx.deleteMessage();}catch(_){}
-  return ctx.reply(E.wrench+' <b>Edit '+b.ticker+'</b>\nWhat to change?',{parse_mode:'HTML',reply_markup:{inline_keyboard:[
-    [{text:'\u{1F3AF} Quick Setup (fill missing)',callback_data:'ef_setup_'+i}],
+  var rows=[];
+  if(hasPending){
+    rows.push([{text:'\u{1F680} Apply changes ('+pendingTotal+' pending)',callback_data:'ef_apply_'+i}]);
+  }
+  rows.push([{text:'\u{1F3AF} Quick Setup (fill missing)',callback_data:'ef_setup_'+i}]);
+  rows.push(
     [{text:(d.ticker&&d.ticker!=='$TOKEN'?'\u2705 ':'')+' Ticker: '+(d.ticker&&d.ticker!=='$TOKEN'?d.ticker:'not set'),callback_data:'ef_ticker_'+i},
      {text:(d.ca?'\u2705 ':'')+' CA: '+(d.ca?d.ca.slice(0,6)+'...':'not set'),callback_data:'ef_ca_'+i}],
     [{text:(d.twitter?'\u2705 ':'')+' Twitter/X: '+(d.twitter?'set':'not set'),callback_data:'ef_twitter_'+i},
@@ -911,20 +867,32 @@ bot.action(/^epk_(\d+)$/,async function(ctx){
      {text:(d.locked==='BURNED'?'\u2705':'')+' BURNED',callback_data:'eflp_BURNED_'+i},
      {text:(!d.locked||d.locked==='NOT LOCKED'?'\u2705':'')+' NOT LOCKED',callback_data:'eflp_NOTLOCKED_'+i}],
     [{text:'\u{1F4F7} Bot image',callback_data:'ef_image_'+i},
-     {text:'\u{1F514} Silence: '+({'0':'Off','600000':'10m','1800000':'30m','3600000':'1h','7200000':'2h','10800000':'3h'}[String(d.silenceBreaker||'3600000')]||'1h'),callback_data:'ef_sil_'+i}],
-    [{text:'Stage: '+({'live':'\u{1F7E2} Live','prelaunch':'\u{1F7E1} Pre-launch','noCA':'\u26AA No CA'}[(b.d&&b.d.stage)||'live']||'Live'),callback_data:'ef_stage_'+i},
-    ],
+     {text:'\u{1F514} Silence: '+({'0':'Off','600000':'10m','1800000':'30m','3600000':'1h','7200000':'2h','10800000':'3h'}[String(d.silenceBreaker||'0')]||'Off'),callback_data:'ef_sil_'+i}],
+    [{text:'\u{1F4E2} Shoutouts: '+(d.shoutoutsOn===true||d.shoutoutsOn==='true'?'\u2705 On':'\u274C Off'),callback_data:'ef_shoutouts_'+i},
+     {text:'\u2600\uFE0F Morning: '+(d.morningOn===true||d.morningOn==='true'?'\u2705 On':'\u274C Off'),callback_data:'ef_morning_'+i}],
+    [{text:'\u{1F4AC} Reply Mode: '+(d.replyMode==='conversational'?'Conversational':'Question-only'),callback_data:'ef_replymode_'+i}],
+    [{text:'Stage: '+({'live':'\u{1F7E2} Live','prelaunch':'\u{1F7E1} Pre-launch','noCA':'\u26AA No CA'}[(b.d&&b.d.stage)||'live']||'Live'),callback_data:'ef_stage_'+i}],
     [{text:(d.stage==='live'?'\u2705':'')+' Live',callback_data:'esg_live_'+i},
      {text:(d.stage==='prelaunch'?'\u2705':'')+' Pre-launch',callback_data:'esg_prelaunch_'+i},
      {text:(d.stage==='noCA'?'\u2705':'')+' No CA',callback_data:'esg_noCA_'+i}],
     [{text:(d.status==='cto'?'\u2705':'')+' CTO',callback_data:'ecto_cto_'+i},
      {text:(d.status!=='cto'?'\u2705':'')+' Active Dev',callback_data:'ecto_dev_'+i}],
     [{text:(d.website?'\u2705 ':'')+'Website: '+(d.website?'set':'not set'),callback_data:'ef_website_'+i}],
-    [{text:(d.utilityLabel?'\u2705 ':'')+'Special Utility: '+(d.utilityLabel||'none'),callback_data:'ef_utility_'+i}],
-    [{text:E.xmark+' Cancel',callback_data:'ecancel'}],
-    [{text:'\u{1F5D1}\uFE0F Delete this bot',callback_data:'ef_delete_'+i}],
-  ]}});
+    [{text:(d.utilityLabel?'\u2705 ':'')+'Special Utility: '+(d.utilityLabel||'none'),callback_data:'ef_utility_'+i}]
+  );
+  if(hasPending){
+    rows.push([{text:'\u{1F680} Apply changes ('+pendingTotal+' pending)',callback_data:'ef_apply_'+i}]);
+  }
+  rows.push([{text:E.xmark+' Cancel',callback_data:'ecancel'}]);
+  rows.push([{text:'\u{1F5D1}\uFE0F Delete this bot',callback_data:'ef_delete_'+i}]);
+  return ctx.reply(
+    E.wrench+' <b>Edit '+b.ticker+'</b>\n'
+    +(hasPending?'\u26A0\uFE0F '+pendingTotal+' staged change(s). Tap Apply to push to bots.\n':'')
+    +'What to change?',
+    {parse_mode:'HTML',reply_markup:{inline_keyboard:rows}}
+  );
 });
+
 
 bot.action(/^ef_(ticker|ca|twitter|tg|website|narrative|supply|tax|maxwallet)_(\d+)$/,async function(ctx){
   await ctx.answerCbQuery();var field=ctx.match[1],i=parseInt(ctx.match[2]),uid=String(ctx.from.id);
@@ -1014,6 +982,35 @@ bot.action(/^esil_([0-9]+)_(\d+)$/,async function(ctx){
   try{await ctx.deleteMessage();}catch(_){}
   var labels={'0':'Off','600000':'10 min','1800000':'30 min','3600000':'1 hr','7200000':'2 hr','10800000':'3 hr'};
   await pushAndSave(ctx,b,'Silence breaker set to '+(labels[val]||val));
+});
+
+// Toggle: shoutouts on/off
+bot.action(/^ef_shoutouts_(\d+)$/,async function(ctx){
+  await ctx.answerCbQuery();var i=parseInt(ctx.match[1]),b=registry[i];if(!b)return;
+  b.d=b.d||{};
+  var cur=b.d.shoutoutsOn===true||b.d.shoutoutsOn==='true';
+  b.d.shoutoutsOn=!cur;
+  try{await ctx.deleteMessage();}catch(_){}
+  await pushAndSave(ctx,b,'Shoutouts '+(!cur?'ON':'OFF'));
+});
+
+// Toggle: morning summary on/off
+bot.action(/^ef_morning_(\d+)$/,async function(ctx){
+  await ctx.answerCbQuery();var i=parseInt(ctx.match[1]),b=registry[i];if(!b)return;
+  b.d=b.d||{};
+  var cur=b.d.morningOn===true||b.d.morningOn==='true';
+  b.d.morningOn=!cur;
+  try{await ctx.deleteMessage();}catch(_){}
+  await pushAndSave(ctx,b,'Morning summary '+(!cur?'ON':'OFF'));
+});
+
+// Toggle: reply mode question-only vs conversational
+bot.action(/^ef_replymode_(\d+)$/,async function(ctx){
+  await ctx.answerCbQuery();var i=parseInt(ctx.match[1]),b=registry[i];if(!b)return;
+  b.d=b.d||{};
+  b.d.replyMode=(b.d.replyMode==='conversational')?'question':'conversational';
+  try{await ctx.deleteMessage();}catch(_){}
+  await pushAndSave(ctx,b,'Reply mode \u2192 '+b.d.replyMode);
 });
 
 bot.action(/^ef_sil_(\d+)$/,async function(ctx){
@@ -1127,7 +1124,6 @@ bot.action('ecancel',async function(ctx){
 });
 
 async function pushAndSave(ctx,b,what){
-  await ctx.reply(E.gear+' Saving...');
   try{
     if(b.repoName&&b.ghOwner){
       var botCode=genBot(b.d,CHAIN[b.chain]||CHAIN.bsc,b.mode);
@@ -1137,17 +1133,52 @@ async function pushAndSave(ctx,b,what){
     saveRegistry();
     var editEntry2=registry.find(function(x){return x.repoName===b.repoName;});
     if(editEntry2)syncToBotsJson(editEntry2).catch(function(){});
-    scheduleReload(ctx);
+    // Find bot index to track pending
+    var idx=registry.findIndex(function(x){return x.repoName===b.repoName;});
+    if(idx>=0)pendingApply.add(idx);
+    var count=pendingApply.size;
     return ctx.reply(
-      E.check+' <b>'+b.ticker+'</b> \u2014 '+what+'!\n\n'
-      +E.clock+' Deploying in ~8s. Wait for this before next edit.',
+      E.check+' <b>'+b.ticker+'</b> \u2014 '+what+' staged.\n\n'
+      +E.clock+' Changes saved but NOT live yet. Edit more or tap Apply when done.',
       {parse_mode:'HTML', reply_markup:{inline_keyboard:[
-        [{text:E.chart+' View bots',callback_data:'show_bots'},{text:E.pencil+' Edit this bot',callback_data:'show_edit_'+(b.repoName||'')}],
-        [{text:E.rocket+' Build another',callback_data:'build_another'}],
+        [{text:'\u{1F680} Apply changes ('+count+' pending)',callback_data:'ef_apply_'+(idx>=0?idx:0)}],
+        [{text:E.pencil+' Edit more',callback_data:'show_edit_'+(b.repoName||'')},{text:E.chart+' View bots',callback_data:'show_bots'}],
       ]}}
     );
   }catch(e){return ctx.reply(E.xmark+' Failed: '+e.message);}
 }
+
+// Apply all pending changes  triggers supervisor reload once
+bot.action(/^ef_apply_(\d+)$/,async function(ctx){
+  await ctx.answerCbQuery();
+  if(pendingApply.size===0){
+    try{await ctx.deleteMessage();}catch(_){}
+    return ctx.reply(E.check+' No pending changes.');
+  }
+  var count=pendingApply.size;
+  var tickers=Array.from(pendingApply).map(function(idx){
+    var b=registry[idx]; return b?b.ticker:'?';
+  }).join(', ');
+  pendingApply.clear();
+  try{await ctx.deleteMessage();}catch(_){}
+  await ctx.reply(
+    E.rocket+' <b>Applying changes...</b>\n\n'
+    +'Bots: '+tickers+'\n'
+    +'Pending: '+count+'\n\n'
+    +E.clock+' Supervisor reload in ~8s.',
+    {parse_mode:'HTML'}
+  );
+  scheduleReload(ctx);
+});
+
+// Discard all pending changes (changes already saved to registry, just clears the pending flag)
+bot.action('ef_discard',async function(ctx){
+  await ctx.answerCbQuery();
+  pendingApply.clear();
+  try{await ctx.deleteMessage();}catch(_){}
+  return ctx.reply(E.xmark+' Pending list cleared. Note: changes already saved to registry. Use Apply if you want them live.');
+});
+
 
 //  REBUILD / UPDATE 
 //  CLEANUP SYSTEM 
