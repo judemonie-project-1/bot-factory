@@ -90,16 +90,16 @@
     "repoName": "fwc-bot-mfxd",
     "state": {
       "caUnlocked": true,
-      "groupChatId": -1003701480279,
+      "groupChatId": -1003797329661,
       "shoutoutOn": false
     },
     "analytics": {
-      "messages": 175,
+      "messages": 178,
       "shills": 0,
-      "caReqs": 38,
+      "caReqs": 40,
       "priceReqs": 0,
       "joinedAt": 1778311745378,
-      "xReqs": 4
+      "xReqs": 5
     }
   }
 ]
