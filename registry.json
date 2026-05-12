@@ -290,7 +290,7 @@
       "supply": "2,026,000,000",
       "buyTax": "5",
       "sellTax": "5",
-      "maxWalletPct": "5",
+      "maxWalletPct": "5%",
       "renounced": "RENOUNCED",
       "locked": "PENDING",
       "silenceBreaker": "3600000",
