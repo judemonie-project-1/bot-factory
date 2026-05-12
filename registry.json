@@ -295,7 +295,8 @@
       "locked": "LOCKED",
       "silenceBreaker": "3600000",
       "revealCmd": "",
-      "hideCmd": ""
+      "hideCmd": "",
+      "morningOn": true
     }
   }
 ]
