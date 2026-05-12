@@ -46,7 +46,10 @@ var E={
   folder:'\u{1F4C2}',wrench:'\u{1F527}',shield:'\u{1F6E1}',robot:'\u{1F916}',
   star:'\u2B50',pencil:'\u270F\uFE0F',chart:'\u{1F4CA}',bnb:'\u{1F7E1}',
   sol:'\u{1F7E3}',list:'\u{1F4CB}',money:'\u{1F4B0}',copy:'\u{1F4CB}',
-  search:'\u{1F50D}',
+  search:'\u{1F50D}',clock:'\u23F0',bell:'\u{1F514}',sun:'\u2600\uFE0F',
+  speaker:'\u{1F4E2}',chat:'\u{1F4AC}',off:'\u{1F535}',on:'\u{1F7E2}',
+  globe:'\u{1F310}',people:'\u{1F465}',wave:'\u{1F44B}',camera:'\u{1F4F7}',
+  trash:'\u{1F5D1}',back:'\u21A9\uFE0F',
 };
 
 var CHAIN={
@@ -213,6 +216,7 @@ function saveRegistry(){
       var c={
         id:b.id||b.repoName,ticker:b.ticker,chain:b.chain,mode:b.mode,
         repoName:b.repoName,ghOwner:b.ghOwner,status:b.status,builtAt:b.builtAt,
+        url:b.url,
         state:b.state||{},analytics:b.analytics||{},
         d:b.d?{
           botToken:b.d.botToken,chain:b.d.chain,mode:b.d.mode,status:b.d.status,
@@ -222,7 +226,8 @@ function saveRegistry(){
           buyTax:b.d.buyTax,sellTax:b.d.sellTax,maxWalletPct:b.d.maxWalletPct,
           renounced:b.d.renounced,locked:b.d.locked,silenceBreaker:b.d.silenceBreaker,
           revealCmd:b.d.revealCmd,hideCmd:b.d.hideCmd,
-          utilityLabel:b.d.utilityLabel,utilityUrl:b.d.utilityUrl,vaultCA:b.d.vaultCA
+          utilityLabel:b.d.utilityLabel,utilityUrl:b.d.utilityUrl,vaultCA:b.d.vaultCA,
+          morningOn:b.d.morningOn,shoutoutsOn:b.d.shoutoutsOn,replyMode:b.d.replyMode,
         }:{}
       };
       if(c.d.botToken&&typeof c.d.botToken==='string')c.d.botToken=obfuscateToken(c.d.botToken);
@@ -840,57 +845,156 @@ bot.command('edit',async function(ctx){
   var kb=registry.map(function(b,i){return[{text:b.ticker+' ('+b.chain.toUpperCase()+')',callback_data:'epk_'+i}];});
   return ctx.reply(E.wrench+' <b>Which bot?</b>',{parse_mode:'HTML',reply_markup:{inline_keyboard:kb}});
 });
-bot.action(/^epk_(\d+)$/,async function(ctx){
-  await ctx.answerCbQuery();var i=parseInt(ctx.match[1]),b=registry[i];
-  if(!b)return ctx.reply('Not found.');
-  var uid=String(ctx.from.id);delete sessions[uid];editSessions[uid]={idx:i};
+
+// Build edit menu view for bot at index i. Returns {text, keyboard}.
+// Used both for initial open AND for in-place re-renders after each toggle.
+function buildEditMenu(i){
+  var b=registry[i];
+  if(!b)return null;
   var d=b.d||{};
   var hasPending=pendingApply.has(i);
   var pendingTotal=pendingApply.size;
-  try{await ctx.deleteMessage();}catch(_){}
+  // Compact visible value previews so user sees what is actually set
+  function preview(val,maxLen){
+    if(!val)return '';
+    var s=String(val);
+    if(s.length>maxLen)return s.slice(0,maxLen)+'\u2026';
+    return s;
+  }
+  function flag(set){ return set?'\u2705 ':'\u274C '; }
+  function onoff(v){ return (v===true||v==='true')?'\u2705 ON':'\u274C OFF'; }
+
+  var tickerSet=d.ticker && d.ticker!=='$TOKEN';
+  var caSet=!!d.ca && d.ca!=='TBA';
+  var supplySet=d.supply && d.supply!=='N/A';
+  var taxSet=d.buyTax!==undefined && d.buyTax!==null && d.buyTax!=='' && d.buyTax!=='?';
+  var maxWalletSet=!!d.maxWalletPct;
+
+  var silOpts={'0':'Off','600000':'10m','1800000':'30m','3600000':'1h','7200000':'2h','10800000':'3h'};
+  var silLabel=silOpts[String(d.silenceBreaker||'0')]||'Off';
+  var stageLabel={'live':E.on+' Live','prelaunch':'\u{1F7E1} Pre-launch','noCA':'\u26AA No CA'}[d.stage||'live']||(E.on+' Live');
+
   var rows=[];
+
+  // Pending banner row at the very top
   if(hasPending){
-    rows.push([{text:'\u{1F680} Apply changes ('+pendingTotal+' pending)',callback_data:'ef_apply_'+i}]);
+    rows.push([{text:E.rocket+' Apply '+pendingTotal+' staged change(s)',callback_data:'ef_apply_'+i}]);
   }
+
   rows.push([{text:'\u{1F3AF} Quick Setup (fill missing)',callback_data:'ef_setup_'+i}]);
+
+  // Identifiers
   rows.push(
-    [{text:(d.ticker&&d.ticker!=='$TOKEN'?'\u2705 ':'')+' Ticker: '+(d.ticker&&d.ticker!=='$TOKEN'?d.ticker:'not set'),callback_data:'ef_ticker_'+i},
-     {text:(d.ca?'\u2705 ':'')+' CA: '+(d.ca?d.ca.slice(0,6)+'...':'not set'),callback_data:'ef_ca_'+i}],
-    [{text:(d.twitter?'\u2705 ':'')+' Twitter/X: '+(d.twitter?'set':'not set'),callback_data:'ef_twitter_'+i},
-     {text:(d.tg?'\u2705 ':'')+' TG: '+(d.tg?'set':'not set'),callback_data:'ef_tg_'+i}],
-    [{text:(d.narrative?'\u2705 ':'')+' Narrative',callback_data:'ef_narrative_'+i},
-     {text:(d.supply&&d.supply!=='N/A'?'\u2705 ':'')+' Supply',callback_data:'ef_supply_'+i}],
-    [{text:(d.buyTax&&d.buyTax!=='?'?'\u2705 ':'')+' Tax: '+(d.buyTax||'?')+'/'+(d.sellTax||'?')+'%',callback_data:'ef_tax_'+i},
-     {text:(d.maxWalletPct?'\u2705 ':'')+' Max Wallet: '+(d.maxWalletPct||'not set'),callback_data:'ef_maxwallet_'+i}],
-    [{text:(d.renounced?'\u2705 ':'')+' Renounced: '+(d.renounced||'not set'),callback_data:'ef_ren_'+i}],
-    [{text:(d.locked==='LOCKED'?'\u2705':'')+' LOCKED',callback_data:'eflp_LOCKED_'+i},
-     {text:(d.locked==='BURNED'?'\u2705':'')+' BURNED',callback_data:'eflp_BURNED_'+i},
-     {text:(!d.locked||d.locked==='NOT LOCKED'?'\u2705':'')+' NOT LOCKED',callback_data:'eflp_NOTLOCKED_'+i}],
-    [{text:'\u{1F4F7} Bot image',callback_data:'ef_image_'+i},
-     {text:'\u{1F514} Silence: '+({'0':'Off','600000':'10m','1800000':'30m','3600000':'1h','7200000':'2h','10800000':'3h'}[String(d.silenceBreaker||'0')]||'Off'),callback_data:'ef_sil_'+i}],
-    [{text:'\u{1F4E2} Shoutouts: '+(d.shoutoutsOn===true||d.shoutoutsOn==='true'?'\u2705 On':'\u274C Off'),callback_data:'ef_shoutouts_'+i},
-     {text:'\u2600\uFE0F Morning: '+(d.morningOn===true||d.morningOn==='true'?'\u2705 On':'\u274C Off'),callback_data:'ef_morning_'+i}],
-    [{text:'\u{1F4AC} Reply Mode: '+(d.replyMode==='conversational'?'Conversational':'Question-only'),callback_data:'ef_replymode_'+i}],
-    [{text:'Stage: '+({'live':'\u{1F7E2} Live','prelaunch':'\u{1F7E1} Pre-launch','noCA':'\u26AA No CA'}[(b.d&&b.d.stage)||'live']||'Live'),callback_data:'ef_stage_'+i}],
-    [{text:(d.stage==='live'?'\u2705':'')+' Live',callback_data:'esg_live_'+i},
-     {text:(d.stage==='prelaunch'?'\u2705':'')+' Pre-launch',callback_data:'esg_prelaunch_'+i},
-     {text:(d.stage==='noCA'?'\u2705':'')+' No CA',callback_data:'esg_noCA_'+i}],
-    [{text:(d.status==='cto'?'\u2705':'')+' CTO',callback_data:'ecto_cto_'+i},
-     {text:(d.status!=='cto'?'\u2705':'')+' Active Dev',callback_data:'ecto_dev_'+i}],
-    [{text:(d.website?'\u2705 ':'')+'Website: '+(d.website?'set':'not set'),callback_data:'ef_website_'+i}],
-    [{text:(d.utilityLabel?'\u2705 ':'')+'Special Utility: '+(d.utilityLabel||'none'),callback_data:'ef_utility_'+i}]
+    [{text:flag(tickerSet)+'Ticker: '+(tickerSet?d.ticker:'not set'),callback_data:'ef_ticker_'+i}],
+    [{text:flag(caSet)+'CA: '+(caSet?preview(d.ca,12):'not set'),callback_data:'ef_ca_'+i}]
   );
+
+  // Links
+  rows.push(
+    [{text:flag(!!d.twitter)+'Twitter/X: '+(d.twitter?preview(d.twitter,28):'not set'),callback_data:'ef_twitter_'+i}],
+    [{text:flag(!!d.tg)+'Telegram: '+(d.tg?preview(d.tg,28):'not set'),callback_data:'ef_tg_'+i}],
+    [{text:flag(!!d.website)+'Website: '+(d.website?preview(d.website,28):'not set'),callback_data:'ef_website_'+i}]
+  );
+
+  // Token specs (visible values)
+  rows.push(
+    [{text:flag(!!d.narrative)+'Narrative: '+(d.narrative?preview(d.narrative,28):'not set'),callback_data:'ef_narrative_'+i}],
+    [{text:flag(supplySet)+'Supply: '+(supplySet?preview(d.supply,18):'not set'),callback_data:'ef_supply_'+i}],
+    [{text:flag(taxSet)+'Tax: '+(taxSet?(d.buyTax+'/'+(d.sellTax||'0')+'%'):'not set'),callback_data:'ef_tax_'+i},
+     {text:flag(maxWalletSet)+'Max wallet: '+(maxWalletSet?d.maxWalletPct:'not set'),callback_data:'ef_maxwallet_'+i}]
+  );
+
+  // Contract status
+  rows.push(
+    [{text:flag(!!d.renounced && d.renounced!=='PENDING')+'Renounced: '+(d.renounced||'not set'),callback_data:'ef_ren_'+i}],
+    [{text:(d.locked==='LOCKED'?'\u2705 ':'')+'LOCKED',callback_data:'eflp_LOCKED_'+i},
+     {text:(d.locked==='BURNED'?'\u2705 ':'')+'BURNED',callback_data:'eflp_BURNED_'+i},
+     {text:(!d.locked||d.locked==='NOT LOCKED'?'\u2705 ':'')+'NOT LOCKED',callback_data:'eflp_NOTLOCKED_'+i}]
+  );
+
+  // Behavior toggles
+  rows.push(
+    [{text:E.bell+' Silence breaker: '+silLabel,callback_data:'ef_sil_'+i}],
+    [{text:E.speaker+' Shoutouts: '+onoff(d.shoutoutsOn),callback_data:'ef_shoutouts_'+i}],
+    [{text:E.sun+' Morning summary: '+onoff(d.morningOn),callback_data:'ef_morning_'+i}],
+    [{text:E.chat+' Reply mode: '+(d.replyMode==='conversational'?'Conversational':'Question-only'),callback_data:'ef_replymode_'+i}]
+  );
+
+  // Stage selector
+  rows.push(
+    [{text:'Stage: '+stageLabel,callback_data:'ef_stage_'+i}],
+    [{text:(d.stage==='live'?'\u2705 ':'')+'Live',callback_data:'esg_live_'+i},
+     {text:(d.stage==='prelaunch'?'\u2705 ':'')+'Pre-launch',callback_data:'esg_prelaunch_'+i},
+     {text:(d.stage==='noCA'?'\u2705 ':'')+'No CA',callback_data:'esg_noCA_'+i}]
+  );
+
+  // Project type
+  rows.push(
+    [{text:(d.status==='cto'?'\u2705 ':'')+'CTO',callback_data:'ecto_cto_'+i},
+     {text:(d.status!=='cto'?'\u2705 ':'')+'Active Dev',callback_data:'ecto_dev_'+i}]
+  );
+
+  // Special utility (FWC etc)
+  rows.push(
+    [{text:flag(!!d.utilityLabel)+'Special utility: '+(d.utilityLabel||'none'),callback_data:'ef_utility_'+i}]
+  );
+
+  // Image
+  rows.push([{text:'\u{1F4F7} Bot image',callback_data:'ef_image_'+i}]);
+
+  // Footer: Done + Apply + Delete + Cancel
   if(hasPending){
-    rows.push([{text:'\u{1F680} Apply changes ('+pendingTotal+' pending)',callback_data:'ef_apply_'+i}]);
+    rows.push([{text:E.check+' Done \u2014 Apply '+pendingTotal+' change(s)',callback_data:'ef_apply_'+i}]);
+  } else {
+    rows.push([{text:E.check+' Done',callback_data:'ef_done'}]);
   }
-  rows.push([{text:E.xmark+' Cancel',callback_data:'ecancel'}]);
-  rows.push([{text:'\u{1F5D1}\uFE0F Delete this bot',callback_data:'ef_delete_'+i}]);
-  return ctx.reply(
-    E.wrench+' <b>Edit '+b.ticker+'</b>\n'
-    +(hasPending?'\u26A0\uFE0F '+pendingTotal+' staged change(s). Tap Apply to push to bots.\n':'')
-    +'What to change?',
-    {parse_mode:'HTML',reply_markup:{inline_keyboard:rows}}
+  rows.push(
+    [{text:'\u{1F5D1}\uFE0F Delete this bot',callback_data:'ef_delete_'+i}],
+    [{text:E.xmark+' Cancel',callback_data:'ecancel'}]
   );
+
+  var text=
+    E.wrench+' <b>Edit '+b.ticker+'</b>'
+    +(hasPending?'\n\n'+E.warn+' <b>'+pendingTotal+' staged change(s)</b>. Tap Apply to push live.':'')
+    +'\n\nTap any item to change it. Toggles update in place.';
+
+  return {text:text, keyboard:{inline_keyboard:rows}};
+}
+
+// Open the edit menu for a specific bot (new message)
+async function showEditMenu(ctx, i){
+  var view=buildEditMenu(i);
+  if(!view){try{await ctx.deleteMessage();}catch(_){};return ctx.reply('Not found.');}
+  try{await ctx.deleteMessage();}catch(_){}
+  return ctx.reply(view.text,{parse_mode:'HTML',reply_markup:view.keyboard});
+}
+
+// Refresh the edit menu in place (used after toggles  no new message, no nav loss)
+async function refreshEditMenu(ctx, i){
+  var view=buildEditMenu(i);
+  if(!view)return;
+  try{
+    await ctx.editMessageText(view.text,{parse_mode:'HTML',reply_markup:view.keyboard});
+  }catch(e){
+    // If message can't be edited (too old, deleted, etc), send a fresh one
+    try{ return ctx.reply(view.text,{parse_mode:'HTML',reply_markup:view.keyboard}); }catch(_){}
+  }
+}
+
+bot.action(/^epk_(\d+)$/,async function(ctx){
+  await ctx.answerCbQuery();
+  var i=parseInt(ctx.match[1]);
+  var uid=String(ctx.from.id);
+  delete sessions[uid];editSessions[uid]={idx:i};
+  return showEditMenu(ctx,i);
+});
+
+// Done button when no pending changes
+bot.action('ef_done',async function(ctx){
+  await ctx.answerCbQuery('Nothing to apply.');
+  delete editSessions[String(ctx.from.id)];
+  try{await ctx.deleteMessage();}catch(_){}
+  return ctx.reply(E.check+' Done. No changes to apply.');
 });
 
 
@@ -955,107 +1059,88 @@ bot.action(/^ef_stage_(\d+)$/,async function(ctx){
 });
 
 bot.action(/^esg_(live|prelaunch|noCA)_(\d+)$/,async function(ctx){
-  await ctx.answerCbQuery();var stage=ctx.match[1],i=parseInt(ctx.match[2]),b=registry[i];if(!b)return ctx.reply('Not found.');
+  await ctx.answerCbQuery();var stage=ctx.match[1],i=parseInt(ctx.match[2]),b=registry[i];if(!b)return;
   b.d=b.d||{};b.d.stage=stage;
-  try{await ctx.deleteMessage();}catch(_){}
-  await pushAndSave(ctx,b,'stage updated to '+stage);
+  await stageChange(b);
+  return refreshEditMenu(ctx,i);
 });
 
+// Silence breaker: show sub-menu inline; sub-menu choice updates and returns to edit menu
 bot.action(/^ef_sil_(\d+)$/,async function(ctx){
   await ctx.answerCbQuery();var i=parseInt(ctx.match[1]),b=registry[i];if(!b)return;
-  try{await ctx.deleteMessage();}catch(_){}
-  var cur=String(b.d&&b.d.silenceBreaker||'3600000');
-  var opts={
-    '0':'Off','600000':'10 min','1800000':'30 min',
-    '3600000':'1 hr','7200000':'2 hr','10800000':'3 hr'
-  };
+  var cur=String(b.d&&b.d.silenceBreaker||'0');
+  var opts={'0':'Off','600000':'10 min','1800000':'30 min','3600000':'1 hr','7200000':'2 hr','10800000':'3 hr'};
   var kb=Object.keys(opts).map(function(v){
     return [{text:(v===cur?'\u2705 ':'')+opts[v],callback_data:'esil_'+v+'_'+i}];
   });
-  kb.push([{text:E.xmark+' Cancel',callback_data:'ecancel'}]);
-  return ctx.reply(E.bell+' <b>Silence Breaker</b>\nBot posts when group is quiet for this long:',{parse_mode:'HTML',reply_markup:{inline_keyboard:kb}});
+  kb.push([{text:'\u21A9\uFE0F Back to edit',callback_data:'epk_'+i}]);
+  return ctx.editMessageText(E.bell+' <b>Silence breaker</b>\n\nBot posts when group is quiet for this long. Off = never.',
+    {parse_mode:'HTML',reply_markup:{inline_keyboard:kb}}).catch(function(){
+    return ctx.reply(E.bell+' <b>Silence breaker</b>',{parse_mode:'HTML',reply_markup:{inline_keyboard:kb}});
+  });
 });
 
 bot.action(/^esil_([0-9]+)_(\d+)$/,async function(ctx){
   await ctx.answerCbQuery();var val=ctx.match[1],i=parseInt(ctx.match[2]),b=registry[i];if(!b)return;
   b.d=b.d||{};b.d.silenceBreaker=val;
-  try{await ctx.deleteMessage();}catch(_){}
-  var labels={'0':'Off','600000':'10 min','1800000':'30 min','3600000':'1 hr','7200000':'2 hr','10800000':'3 hr'};
-  await pushAndSave(ctx,b,'Silence breaker set to '+(labels[val]||val));
+  await stageChange(b);
+  return refreshEditMenu(ctx,i);
 });
 
-// Toggle: shoutouts on/off
+// Toggle: shoutouts on/off (in-place)
 bot.action(/^ef_shoutouts_(\d+)$/,async function(ctx){
   await ctx.answerCbQuery();var i=parseInt(ctx.match[1]),b=registry[i];if(!b)return;
   b.d=b.d||{};
   var cur=b.d.shoutoutsOn===true||b.d.shoutoutsOn==='true';
   b.d.shoutoutsOn=!cur;
-  try{await ctx.deleteMessage();}catch(_){}
-  await pushAndSave(ctx,b,'Shoutouts '+(!cur?'ON':'OFF'));
+  await stageChange(b);
+  return refreshEditMenu(ctx,i);
 });
 
-// Toggle: morning summary on/off
+// Toggle: morning summary on/off (in-place)
 bot.action(/^ef_morning_(\d+)$/,async function(ctx){
   await ctx.answerCbQuery();var i=parseInt(ctx.match[1]),b=registry[i];if(!b)return;
   b.d=b.d||{};
   var cur=b.d.morningOn===true||b.d.morningOn==='true';
   b.d.morningOn=!cur;
-  try{await ctx.deleteMessage();}catch(_){}
-  await pushAndSave(ctx,b,'Morning summary '+(!cur?'ON':'OFF'));
+  await stageChange(b);
+  return refreshEditMenu(ctx,i);
 });
 
-// Toggle: reply mode question-only vs conversational
+// Toggle: reply mode (in-place)
 bot.action(/^ef_replymode_(\d+)$/,async function(ctx){
   await ctx.answerCbQuery();var i=parseInt(ctx.match[1]),b=registry[i];if(!b)return;
   b.d=b.d||{};
   b.d.replyMode=(b.d.replyMode==='conversational')?'question':'conversational';
-  try{await ctx.deleteMessage();}catch(_){}
-  await pushAndSave(ctx,b,'Reply mode \u2192 '+b.d.replyMode);
+  await stageChange(b);
+  return refreshEditMenu(ctx,i);
 });
 
-bot.action(/^ef_sil_(\d+)$/,async function(ctx){
-  await ctx.answerCbQuery();var i=parseInt(ctx.match[1]),b=registry[i];if(!b)return ctx.reply('Not found.');
-  try{await ctx.deleteMessage();}catch(_){}
-  return ctx.reply('\u23F0 Silence breaker setting:',{reply_markup:{inline_keyboard:[
-    [{text:'\u{1F507} Off',callback_data:'esl_0_'+i}],
-    [{text:'10 minutes',callback_data:'esl_600000_'+i}],
-    [{text:'30 minutes',callback_data:'esl_1800000_'+i}],
-    [{text:'1 hour (recommended)',callback_data:'esl_3600000_'+i}],
-    [{text:'3 hours',callback_data:'esl_10800000_'+i}],
-    [{text:E.xmark+' Cancel',callback_data:'ecancel'}],
-  ]}});
-});
-
-bot.action(/^esl_(\d+)_(\d+)$/,async function(ctx){
-  await ctx.answerCbQuery();var val=ctx.match[1],i=parseInt(ctx.match[2]),b=registry[i];if(!b)return ctx.reply('Not found.');
-  b.d=b.d||{};b.d.silenceBreaker=val;
-  try{await ctx.deleteMessage();}catch(_){}
-  await pushAndSave(ctx,b,'silence breaker updated');
-});
-
+// Toggle: renounced (in-place)
 bot.action(/^ef_ren_(\d+)$/,async function(ctx){
   await ctx.answerCbQuery();var i=parseInt(ctx.match[1]),b=registry[i];if(!b)return;
   b.d=b.d||{};b.d.renounced=b.d.renounced==='RENOUNCED'?'NOT RENOUNCED':'RENOUNCED';
-  try{await ctx.deleteMessage();}catch(_){}
-  await pushAndSave(ctx,b,'renounced toggled to '+b.d.renounced);
+  await stageChange(b);
+  return refreshEditMenu(ctx,i);
 });
+
+// LP lock (in-place)
 bot.action(/^eflp_([A-Z]+)_(\d+)$/,async function(ctx){
   await ctx.answerCbQuery();
   var val=ctx.match[1]==='NOTLOCKED'?'NOT LOCKED':ctx.match[1];
   var i=parseInt(ctx.match[2]),b=registry[i];if(!b)return;
   b.d=b.d||{};b.d.locked=val;
-  try{await ctx.deleteMessage();}catch(_){}
-  await pushAndSave(ctx,b,'LP set to '+val);
+  await stageChange(b);
+  return refreshEditMenu(ctx,i);
 });
-bot.action(/^ef_cto_(\d+)$/,async function(ctx){
+
+// CTO/Active Dev toggle (in-place)
+bot.action(/^ecto_(cto|dev)_(\d+)$/,async function(ctx){
   await ctx.answerCbQuery();
-  var i=parseInt(ctx.match[1]),b=registry[i];if(!b)return;
-  try{await ctx.deleteMessage();}catch(_){}
-  return ctx.reply('\u{1F3AF} <b>Project Status</b>\nSelect:',{parse_mode:'HTML',reply_markup:{inline_keyboard:[
-    [{text:(b.d&&b.d.status==='cto'?'\u2705 ':'')+' CTO (Community Takeover)',callback_data:'ectos_cto_'+i}],
-    [{text:(b.d&&b.d.status!=='cto'?'\u2705 ':'')+' Active Dev',callback_data:'ectos_launch_'+i}],
-    [{text:E.xmark+' Cancel',callback_data:'ecancel'}],
-  ]}});
+  var i=parseInt(ctx.match[2]),b=registry[i];if(!b)return;
+  b.d=b.d||{};b.d.status=ctx.match[1]==='cto'?'cto':'launch';
+  await stageChange(b);
+  return refreshEditMenu(ctx,i);
 });
 // Website edit
 bot.action(/^ef_website_(\d+)$/,async function(ctx){
@@ -1081,15 +1166,6 @@ bot.action(/^ef_utility_(\d+)$/,async function(ctx){
     +'<i>VaultCA is optional. Type skip to clear.</i>',
     {parse_mode:'HTML'}
   );
-});
-
-// Status select buttons
-bot.action(/^ecto_(cto|dev)_(\d+)$/,async function(ctx){
-  await ctx.answerCbQuery();
-  var i=parseInt(ctx.match[2]),b=registry[i];if(!b)return;
-  b.d=b.d||{};b.d.status=ctx.match[1]==='cto'?'cto':'launch';
-  try{await ctx.deleteMessage();}catch(_){}
-  await pushAndSave(ctx,b,'Status set to '+(b.d.status==='cto'?'CTO':'Active Dev'));
 });
 
 // Delete bot handler
@@ -1123,6 +1199,30 @@ bot.action('ecancel',async function(ctx){
   try{await ctx.deleteMessage();}catch(_){}return ctx.reply(E.xmark+' Cancelled.');
 });
 
+// Lightweight stage helper: saves to registry+GitHub, marks pending, returns nothing.
+// Used by in-place toggles that re-render the edit menu themselves.
+async function stageChange(b){
+  if(!b)return false;
+  try{
+    if(b.repoName&&b.ghOwner){
+      var botCode=genBot(b.d,CHAIN[b.chain]||CHAIN.bsc,b.mode);
+      botCode='// build:'+Date.now()+'\n'+botCode;
+      await githubUpdate(b.ghOwner,b.repoName,'bot.js',Buffer.from(botCode));
+    }
+    saveRegistry();
+    var entry=registry.find(function(x){return x.repoName===b.repoName;});
+    if(entry)syncToBotsJson(entry).catch(function(){});
+    var idx=registry.findIndex(function(x){return x.repoName===b.repoName;});
+    if(idx>=0)pendingApply.add(idx);
+    return true;
+  }catch(e){
+    console.error('stageChange failed:',e.message);
+    return false;
+  }
+}
+
+// Used by text-input edits (Ticker/CA/Twitter/etc) where the chat has moved past
+// the edit menu. Sends a confirmation message with a "Back to edit" button.
 async function pushAndSave(ctx,b,what){
   try{
     if(b.repoName&&b.ghOwner){
@@ -1133,20 +1233,20 @@ async function pushAndSave(ctx,b,what){
     saveRegistry();
     var editEntry2=registry.find(function(x){return x.repoName===b.repoName;});
     if(editEntry2)syncToBotsJson(editEntry2).catch(function(){});
-    // Find bot index to track pending
     var idx=registry.findIndex(function(x){return x.repoName===b.repoName;});
     if(idx>=0)pendingApply.add(idx);
     var count=pendingApply.size;
     return ctx.reply(
       E.check+' <b>'+b.ticker+'</b> \u2014 '+what+' staged.\n\n'
-      +E.clock+' Changes saved but NOT live yet. Edit more or tap Apply when done.',
+      +E.clock+' '+count+' change(s) waiting. Edit more or apply now.',
       {parse_mode:'HTML', reply_markup:{inline_keyboard:[
-        [{text:'\u{1F680} Apply changes ('+count+' pending)',callback_data:'ef_apply_'+(idx>=0?idx:0)}],
-        [{text:E.pencil+' Edit more',callback_data:'show_edit_'+(b.repoName||'')},{text:E.chart+' View bots',callback_data:'show_bots'}],
+        [{text:E.pencil+' Back to edit '+b.ticker,callback_data:'epk_'+(idx>=0?idx:0)}],
+        [{text:E.rocket+' Apply '+count+' change(s) now',callback_data:'ef_apply_'+(idx>=0?idx:0)}],
       ]}}
     );
   }catch(e){return ctx.reply(E.xmark+' Failed: '+e.message);}
 }
+
 
 // Apply all pending changes  triggers supervisor reload once
 bot.action(/^ef_apply_(\d+)$/,async function(ctx){
