@@ -292,7 +292,7 @@
       "sellTax": "5",
       "maxWalletPct": "5%",
       "renounced": "RENOUNCED",
-      "locked": "PENDING",
+      "locked": "LOCKED",
       "silenceBreaker": "3600000",
       "revealCmd": "",
       "hideCmd": ""
