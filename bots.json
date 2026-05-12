@@ -5,11 +5,11 @@
     "repoName": "mpc-bot-31hk",
     "state": {
       "caUnlocked": true,
-      "groupChatId": -1003824009208,
+      "groupChatId": null,
       "shoutoutOn": true
     },
     "analytics": {
-      "messages": 1,
+      "messages": 0,
       "shills": 0,
       "caReqs": 0,
       "priceReqs": 0,
@@ -56,13 +56,13 @@
     "repoName": "httpsxcomcakepnutcto-bot-j7i8",
     "state": {
       "caUnlocked": true,
-      "groupChatId": -1003838128091,
+      "groupChatId": null,
       "shoutoutOn": true
     },
     "analytics": {
-      "messages": 2,
+      "messages": 0,
       "shills": 0,
-      "caReqs": 1,
+      "caReqs": 0,
       "priceReqs": 0,
       "joinedAt": 1776400000000
     }
@@ -91,10 +91,10 @@
     "state": {
       "caUnlocked": false,
       "groupChatId": -1003797329661,
-      "shoutoutOn": true
+      "shoutoutOn": false
     },
     "analytics": {
-      "messages": 36,
+      "messages": 3,
       "shills": 0,
       "caReqs": 0,
       "priceReqs": 0,
