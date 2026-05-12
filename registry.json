@@ -296,7 +296,8 @@
       "silenceBreaker": "3600000",
       "revealCmd": "",
       "hideCmd": "",
-      "morningOn": true
+      "morningOn": true,
+      "replyMode": "conversational"
     }
   }
 ]
