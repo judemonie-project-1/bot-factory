@@ -14,8 +14,7 @@
       "caReqs": 0,
       "priceReqs": 0,
       "joinedAt": 1775604179857
-    },
-    "d": {}
+    }
   },
   {
     "id": "-bot-a4e0",
@@ -32,8 +31,7 @@
       "caReqs": 0,
       "priceReqs": 0,
       "joinedAt": 1776204678002
-    },
-    "d": {}
+    }
   },
   {
     "id": "nrise-bot-16y4",
@@ -50,8 +48,7 @@
       "caReqs": 0,
       "priceReqs": 0,
       "joinedAt": 1776300000000
-    },
-    "d": {}
+    }
   },
   {
     "id": "httpsxcomcakepnutcto-bot-j7i8",
@@ -63,13 +60,12 @@
       "shoutoutOn": false
     },
     "analytics": {
-      "messages": 1,
+      "messages": 18,
       "shills": 0,
       "caReqs": 0,
       "priceReqs": 0,
       "joinedAt": 1776400000000
-    },
-    "d": {}
+    }
   },
   {
     "id": "fwc26-bot-ptaj",
@@ -86,57 +82,24 @@
       "caReqs": 0,
       "priceReqs": 0,
       "joinedAt": 1777421510993
-    },
-    "d": {}
+    }
   },
   {
     "id": "fwc-bot-mfxd",
     "ticker": "$FWC",
-    "chain": "bsc",
-    "mode": "full",
     "repoName": "fwc-bot-mfxd",
-    "ghOwner": "judemonie-project-1",
-    "status": "active",
-    "builtAt": 1778311745378,
     "state": {
-      "caUnlocked": false,
-      "groupChatId": null,
-      "shoutoutOn": true
+      "caUnlocked": true,
+      "groupChatId": -1003701480279,
+      "shoutoutOn": false
     },
     "analytics": {
-      "messages": 0,
+      "messages": 162,
       "shills": 0,
-      "caReqs": 0,
+      "caReqs": 35,
       "priceReqs": 0,
-      "joinedAt": 1778311745378
-    },
-    "d": {
-      "botToken": {
-        "_a": "8626902075",
-        "_b": "AAFc4AabI0rn9oxmuax9UyA8bgSOsUMXGgI"
-      },
-      "chain": "bsc",
-      "mode": "full",
-      "status": "launch",
-      "stage": "live",
-      "personality": "professional",
-      "responseMode": "conversational",
-      "name": "FWC",
-      "ticker": "$FWC",
-      "ca": "TBA",
-      "twitter": "https://x.com/fwcglobal26",
-      "tg": "https://t.me/FWCbscGlobal",
-      "website": "https://fifa26.website",
-      "narrative": "⚽ Welcome to FWC GLOBAL\nWe’re glad to have you here.\nFWC GLOBAL is a football-driven community built on BSC, focused on bringing together football culture, global fans, and blockchain engagement in one ecosystem.\nThis is an early-stage community, and everything here is built around participation, culture, and long-term vision.\n🌍 Football. Fans. Culture. On-chain.\nPlease stay active, respect others, and be part of the journey as we grow together.\nMore updates coming soon ⚽🔥",
-      "supply": "2,026,000,000",
-      "buyTax": "5",
-      "sellTax": "5",
-      "maxWalletPct": "5%",
-      "renounced": "RENOUNCED",
-      "locked": "PENDING",
-      "silenceBreaker": "3600000",
-      "revealCmd": "",
-      "hideCmd": ""
+      "joinedAt": 1778311745378,
+      "xReqs": 4
     }
   }
 ]
