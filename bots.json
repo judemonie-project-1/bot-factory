@@ -91,12 +91,13 @@
     "state": {
       "caUnlocked": true,
       "groupChatId": -1003797329661,
-      "shoutoutOn": false
+      "shoutoutOn": false,
+      "lastMorningDay": "2026-05-13"
     },
     "analytics": {
-      "messages": 1,
+      "messages": 53,
       "shills": 0,
-      "caReqs": 1,
+      "caReqs": 11,
       "priceReqs": 0,
       "joinedAt": 1778311745378
     }
