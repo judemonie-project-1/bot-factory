@@ -9,9 +9,9 @@
       "shoutoutOn": false
     },
     "analytics": {
-      "messages": 5,
+      "messages": 8,
       "shills": 0,
-      "caReqs": 0,
+      "caReqs": 1,
       "priceReqs": 0,
       "joinedAt": 1775604179857
     }
@@ -39,11 +39,11 @@
     "repoName": "nrise-bot-16y4",
     "state": {
       "caUnlocked": true,
-      "groupChatId": null,
-      "shoutoutOn": true
+      "groupChatId": -1003954303302,
+      "shoutoutOn": false
     },
     "analytics": {
-      "messages": 0,
+      "messages": 1,
       "shills": 0,
       "caReqs": 0,
       "priceReqs": 0,
@@ -60,9 +60,9 @@
       "shoutoutOn": false
     },
     "analytics": {
-      "messages": 104,
+      "messages": 108,
       "shills": 0,
-      "caReqs": 6,
+      "caReqs": 8,
       "priceReqs": 0,
       "joinedAt": 1776400000000
     }
@@ -95,10 +95,10 @@
       "lastMorningDay": "2026-05-14"
     },
     "analytics": {
-      "messages": 841,
-      "shills": 1,
-      "caReqs": 241,
-      "priceReqs": 2,
+      "messages": 1564,
+      "shills": 2,
+      "caReqs": 338,
+      "priceReqs": 3,
       "joinedAt": 1778311745378
     }
   }
