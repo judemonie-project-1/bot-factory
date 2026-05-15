@@ -5,13 +5,13 @@
     "repoName": "mpc-bot-31hk",
     "state": {
       "caUnlocked": true,
-      "groupChatId": -1003824009208,
-      "shoutoutOn": false
+      "groupChatId": null,
+      "shoutoutOn": true
     },
     "analytics": {
-      "messages": 11,
+      "messages": 0,
       "shills": 0,
-      "caReqs": 1,
+      "caReqs": 0,
       "priceReqs": 0,
       "joinedAt": 1775604179857
     }
@@ -39,11 +39,11 @@
     "repoName": "nrise-bot-16y4",
     "state": {
       "caUnlocked": true,
-      "groupChatId": -1003954303302,
-      "shoutoutOn": false
+      "groupChatId": null,
+      "shoutoutOn": true
     },
     "analytics": {
-      "messages": 1,
+      "messages": 0,
       "shills": 0,
       "caReqs": 0,
       "priceReqs": 0,
@@ -56,13 +56,13 @@
     "repoName": "httpsxcomcakepnutcto-bot-j7i8",
     "state": {
       "caUnlocked": true,
-      "groupChatId": -1003838128091,
-      "shoutoutOn": false
+      "groupChatId": null,
+      "shoutoutOn": true
     },
     "analytics": {
-      "messages": 111,
+      "messages": 0,
       "shills": 0,
-      "caReqs": 8,
+      "caReqs": 0,
       "priceReqs": 0,
       "joinedAt": 1776400000000
     }
@@ -91,14 +91,13 @@
     "state": {
       "caUnlocked": true,
       "groupChatId": -1003797329661,
-      "shoutoutOn": false,
-      "lastMorningDay": "2026-05-15"
+      "shoutoutOn": false
     },
     "analytics": {
-      "messages": 1937,
-      "shills": 4,
-      "caReqs": 408,
-      "priceReqs": 5,
+      "messages": 1,
+      "shills": 0,
+      "caReqs": 0,
+      "priceReqs": 0,
       "joinedAt": 1778311745378
     }
   }
