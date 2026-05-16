@@ -196,59 +196,6 @@
     }
   },
   {
-    "id": "fwc26-bot-ptaj",
-    "ticker": "$FWC26",
-    "chain": "bsc",
-    "mode": "full",
-    "repoName": "fwc26-bot-ptaj",
-    "ghOwner": "judemonie-project-1",
-    "status": "active",
-    "builtAt": 1777421510993,
-    "state": {
-      "caUnlocked": true,
-      "groupChatId": null,
-      "shoutoutOn": true
-    },
-    "analytics": {
-      "messages": 0,
-      "shills": 0,
-      "caReqs": 0,
-      "priceReqs": 0,
-      "joinedAt": 1777421510993
-    },
-    "d": {
-      "botToken": {
-        "_a": "8782254656",
-        "_b": "AAFFJYJFutRh_g4SBTUZ3YD3L6VsPhLev-Q"
-      },
-      "chain": "bsc",
-      "mode": "full",
-      "status": "launch",
-      "stage": "live",
-      "personality": "alpha",
-      "responseMode": "conversational",
-      "name": "FWC26",
-      "ticker": "$FWC26",
-      "ca": "0xC4c6EaC95c5619F45714b74a4c4503f00af1FA26",
-      "twitter": "https://x.com/FWC26Bsc",
-      "tg": "https://t.me/FWC2026BSC",
-      "website": "https://www.fwc26.live/",
-      "narrative": "The Official Mascot Token of FIFA WorldCup 2026 on BSC\nBuilt with PREDICT & WIN platform\nA platform where you PREDICT and Win in every\nMatch with no betting or staking,\nAs 4% from buy and sell tax goes into the VAULT to reward you.\nFIFA WORLD CUP 2026 BSC OG.\n\n\nTotal tax is 5% for buy and 5% for sell\n\n3/3 out if it go to marketing and 2/2 go to vault, it makes it 6% for marketing and 4% for prediction vault",
-      "supply": "N/A",
-      "buyTax": "5",
-      "sellTax": "5",
-      "maxWalletPct": "",
-      "renounced": "RENOUNCED",
-      "locked": "LOCKED",
-      "silenceBreaker": "3600000",
-      "revealCmd": "",
-      "hideCmd": "",
-      "utilityLabel": "Predict and win",
-      "utilityUrl": "https://predict.fwc26.live",
-      "vaultCA": "0x10d6Be966d6d07398b56741DBb50DE0c5FFC050e"
-    }
-  },
-  {
     "id": "fwc-bot-mfxd",
     "ticker": "$FWC",
     "chain": "bsc",
