@@ -92,13 +92,13 @@
       "caUnlocked": true,
       "groupChatId": -1003797329661,
       "shoutoutOn": false,
-      "lastMorningDay": "2026-05-17"
+      "lastMorningDay": "2026-05-18"
     },
     "analytics": {
-      "messages": 881,
-      "shills": 23,
-      "caReqs": 153,
-      "priceReqs": 1,
+      "messages": 931,
+      "shills": 25,
+      "caReqs": 158,
+      "priceReqs": 2,
       "joinedAt": 1778311745378
     }
   }
