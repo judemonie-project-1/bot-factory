@@ -246,5 +246,54 @@
       "morningOn": true,
       "replyMode": "question"
     }
+  },
+  {
+    "id": "wcas-bot-ppyb",
+    "ticker": "$WCAS",
+    "chain": "bsc",
+    "mode": "guard",
+    "repoName": "wcas-bot-ppyb",
+    "ghOwner": "judemonie-project-1",
+    "status": "active",
+    "builtAt": 1779967862732,
+    "state": {
+      "caUnlocked": false,
+      "groupChatId": null,
+      "shoutoutOn": true
+    },
+    "analytics": {
+      "messages": 0,
+      "shills": 0,
+      "caReqs": 0,
+      "priceReqs": 0,
+      "joinedAt": 1779967862732
+    },
+    "d": {
+      "botToken": {
+        "_a": "8834152533",
+        "_b": "AAHqKBZ-ECOrEckKA2SRM5GP_bJarHwCJrw"
+      },
+      "chain": "bsc",
+      "mode": "guard",
+      "status": "launch",
+      "stage": "noCA",
+      "personality": "alpha",
+      "responseMode": "focused",
+      "name": "WCAS",
+      "ticker": "$WCAS",
+      "ca": "TBA",
+      "twitter": "https://x.com/Wcas2026",
+      "tg": "",
+      "narrative": "⚽ Legends don’t wait.They step forward and take the shot.\n\nWorld Cup All Stars ($WCAS) is bringing football passion to the blockchain. 🌍🏆\n\nPlay. Support. Earn",
+      "supply": "N/A",
+      "buyTax": "0",
+      "sellTax": "0",
+      "maxWalletPct": "",
+      "renounced": "PENDING",
+      "locked": "PENDING",
+      "silenceBreaker": "3600000",
+      "revealCmd": "",
+      "hideCmd": ""
+    }
   }
 ]
