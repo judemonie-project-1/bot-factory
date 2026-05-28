@@ -9,7 +9,7 @@
       "shoutoutOn": false
     },
     "analytics": {
-      "messages": 274,
+      "messages": 278,
       "shills": 0,
       "caReqs": 9,
       "priceReqs": 0,
@@ -68,23 +68,6 @@
     }
   },
   {
-    "id": "fwc26-bot-ptaj",
-    "ticker": "$FWC26",
-    "repoName": "fwc26-bot-ptaj",
-    "state": {
-      "caUnlocked": true,
-      "groupChatId": null,
-      "shoutoutOn": true
-    },
-    "analytics": {
-      "messages": 0,
-      "shills": 0,
-      "caReqs": 0,
-      "priceReqs": 0,
-      "joinedAt": 1777421510993
-    }
-  },
-  {
     "id": "fwc-bot-mfxd",
     "ticker": "$FWC",
     "repoName": "fwc-bot-mfxd",
@@ -95,12 +78,29 @@
       "lastMorningDay": "2026-05-28"
     },
     "analytics": {
-      "messages": 3467,
+      "messages": 3503,
       "shills": 83,
-      "caReqs": 638,
+      "caReqs": 639,
       "priceReqs": 2,
       "joinedAt": 1778311745378,
       "xReqs": 1
+    }
+  },
+  {
+    "id": "wcas-bot-ppyb",
+    "ticker": "$WCAS",
+    "repoName": "wcas-bot-ppyb",
+    "state": {
+      "caUnlocked": false,
+      "groupChatId": -1003839256887,
+      "shoutoutOn": false
+    },
+    "analytics": {
+      "messages": 1,
+      "shills": 0,
+      "caReqs": 0,
+      "priceReqs": 0,
+      "joinedAt": 1779967862732
     }
   }
 ]
