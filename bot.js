@@ -2748,6 +2748,46 @@ app.post('/webhook',function(req,res){bot.handleUpdate(req.body,res);});
 app.get('/',function(req,res){res.end('OK');});
 app.get('/health',function(req,res){res.end('OK');});
 
+// ---- LISTPAD INTEGRATION: single safe writer for dev-dashboard edits ----
+// Listpad posts dev-dashboard changes here. We apply ONLY whitelisted fields to
+// the matched bot's registry entry, then save + reload - exactly the same path
+// as a manual /edit. Auth via shared LISTPAD_SECRET. This keeps the factory the
+// ONE writer of registry.json (no concurrent-write race with Listpad).
+var LISTPAD_SECRET=process.env.LISTPAD_SECRET||'';
+var LISTPAD_EDITABLE=['twitter','tg','website','narrative','supply','buyTax','sellTax','maxWalletPct','silenceBreaker','shoutoutsOn','morningOn','replyMode','status','utilityLabel'];
+app.post('/listpad/update',async function(req,res){
+  try{
+    var secret=req.headers['x-listpad-secret']||(req.body&&req.body.secret);
+    if(!LISTPAD_SECRET||secret!==LISTPAD_SECRET)return res.status(403).json({error:'Forbidden'});
+    var body=req.body||{};
+    // Match the bot by explicit id, else by CA (case-insensitive), else ticker.
+    var idx=-1;
+    if(body.botId)idx=registry.findIndex(function(b){return b.id===body.botId||b.repoName===body.botId;});
+    if(idx<0&&body.ca)idx=registry.findIndex(function(b){return b.d&&b.d.ca&&String(b.d.ca).toLowerCase()===String(body.ca).toLowerCase();});
+    if(idx<0&&body.ticker)idx=registry.findIndex(function(b){return b.ticker&&b.ticker.toLowerCase()===String(body.ticker).toLowerCase();});
+    if(idx<0)return res.status(404).json({error:'Bot not found'});
+    var b=registry[idx];if(!b.d)b.d={};
+    var changes=(body.settings&&typeof body.settings==='object')?body.settings:{};
+    var applied=[];
+    LISTPAD_EDITABLE.forEach(function(k){
+      if(!(k in changes))return;
+      var v=changes[k];
+      if(k==='shoutoutsOn'||k==='morningOn'){v=(v===true||v==='true'||v==='on'||v==='1');}
+      else{v=(v==null)?'':String(v);}
+      b.d[k]=v;applied.push(k);
+    });
+    // keep top-level state.shoutoutOn in sync if present (used by supervisor)
+    if('shoutoutsOn' in changes&&b.state)b.state.shoutoutOn=b.d.shoutoutsOn;
+    if(!applied.length)return res.json({ok:true,applied:[],note:'no editable fields'});
+    res.json({ok:true,applied:applied});   // respond fast; persist + reload async
+    try{saveRegistry();}catch(e){console.log('listpad save:',e.message);}
+    try{await syncToBotsJson(b);}catch(e){console.log('listpad sync:',e.message);}
+    try{await signalReload();}catch(e){console.log('listpad reload:',e.message);}
+    console.log('Listpad update '+b.ticker+': '+applied.join(','));
+  }catch(e){console.log('listpad/update err:',e.message);try{res.status(500).json({error:e.message});}catch(_){}}
+});
+
+
 async function regWebhook(){
   if(!WEBHOOK_URL){console.log('No WEBHOOK_URL');return;}
   var url=WEBHOOK_URL+'/webhook';
