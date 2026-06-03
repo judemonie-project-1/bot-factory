@@ -9,7 +9,7 @@
       "shoutoutOn": false
     },
     "analytics": {
-      "messages": 767,
+      "messages": 769,
       "shills": 0,
       "caReqs": 34,
       "priceReqs": 0,
@@ -74,12 +74,12 @@
     "repoName": "fwc-bot-mfxd",
     "state": {
       "caUnlocked": true,
-      "groupChatId": -1003797329661,
+      "groupChatId": -1003701480279,
       "shoutoutOn": false,
       "lastMorningDay": "2026-06-03"
     },
     "analytics": {
-      "messages": 4155,
+      "messages": 4160,
       "shills": 94,
       "caReqs": 762,
       "priceReqs": 2,
