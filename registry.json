@@ -295,5 +295,59 @@
       "revealCmd": "",
       "hideCmd": ""
     }
+  },
+  {
+    "id": "dawae-bot-y21a",
+    "ticker": "$DAWAE",
+    "chain": "bsc",
+    "mode": "full",
+    "repoName": "dawae-bot-y21a",
+    "ghOwner": "judemonie-project-1",
+    "status": "active",
+    "builtAt": 1780468557294,
+    "state": {
+      "caUnlocked": true,
+      "groupChatId": null,
+      "shoutoutOn": true
+    },
+    "analytics": {
+      "messages": 0,
+      "shills": 0,
+      "caReqs": 0,
+      "priceReqs": 0,
+      "joinedAt": 1780468557294
+    },
+    "d": {
+      "botToken": {
+        "_a": "8679283353",
+        "_b": "AAG3LDPMtju1Aead3FhtovrYJV11UdoEDKs"
+      },
+      "chain": "bsc",
+      "mode": "full",
+      "status": "cto",
+      "stage": "live",
+      "personality": "alpha",
+      "responseMode": "focused",
+      "name": "Ugandan Knuckles",
+      "ticker": "$DAWAE",
+      "ca": "0x1e5ec9cdadab318f9bfcff393bef7b1e4701acad",
+      "twitter": "DawaeCTO",
+      "tg": "https://t.me/dawaetribe",
+      "website": "https://dawaecoin.com",
+      "narrative": "Pure meme no ultility",
+      "supply": "N/A",
+      "buyTax": "0",
+      "sellTax": "0",
+      "maxWalletPct": "",
+      "renounced": "PENDING",
+      "locked": "NOT LOCKED",
+      "silenceBreaker": "3600000",
+      "revealCmd": "",
+      "hideCmd": "",
+      "utilityLabel": "",
+      "morningOn": true,
+      "shoutoutsOn": true,
+      "replyMode": "conversational"
+    }
   }
 ]
