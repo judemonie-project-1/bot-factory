@@ -378,7 +378,7 @@
       },
       "chain": "bsc",
       "mode": "full",
-      "status": "cto",
+      "status": "dev",
       "stage": "live",
       "personality": "alpha",
       "responseMode": "focused",
