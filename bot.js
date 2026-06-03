@@ -73,7 +73,7 @@ var PERS_LABELS={
 
 var bot=new Telegraf(BOT_TOKEN);
 var app=express();
-app.use(express.json());
+app.use(express.json({limit:'12mb'}));
 var registry=[],registryReady=false,sessions={},editSessions={},groqSessions={},ownerChatIds=new Set();
 var pendingApply=new Set(); // bot indices with staged-but-not-applied changes
 
@@ -2882,13 +2882,14 @@ app.post('/listpad/image',async function(req,res){
     var buf=Buffer.from(data,'base64');
     if(buf.length>5*1024*1024)return res.status(413).json({error:'Image too large (max 5MB)'});
     var base=(b.ticker||'token').replace(/\$/g,'').replace(/[^a-zA-Z0-9]/g,'').toLowerCase();
-    var file=base+'.jpg'; // primary image
-    res.json({ok:true});  // respond fast; push async
+    var n=parseInt(body.index,10);if(isNaN(n)||n<0)n=0;if(n>9)n=9;
+    var file=base+(n===0?'':String(n+1))+'.jpg'; // base.jpg, base2.jpg, base3.jpg ...
+    res.json({ok:true,index:n});  // respond fast; push async
     try{
       await githubUpdate(b.ghOwner,b.repoName,file,buf);
       await sleep(1500);
       await signalReload();
-      console.log('Listpad image updated for '+b.ticker);
+      console.log('Listpad image '+(n+1)+' updated for '+b.ticker);
     }catch(e){console.log('listpad/image push err:',e.message);}
   }catch(e){console.log('listpad/image err:',e.message);try{res.status(500).json({error:e.message});}catch(_){}}
 });
