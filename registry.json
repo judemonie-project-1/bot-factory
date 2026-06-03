@@ -349,5 +349,59 @@
       "shoutoutsOn": true,
       "replyMode": "conversational"
     }
+  },
+  {
+    "id": "just10-bot-rcps",
+    "ticker": "$JUST10",
+    "chain": "bsc",
+    "mode": "full",
+    "repoName": "just10-bot-rcps",
+    "ghOwner": "judemonie-project-1",
+    "status": "active",
+    "builtAt": 1780526529309,
+    "state": {
+      "caUnlocked": true,
+      "groupChatId": null,
+      "shoutoutOn": true
+    },
+    "analytics": {
+      "messages": 0,
+      "shills": 0,
+      "caReqs": 0,
+      "priceReqs": 0,
+      "joinedAt": 1780526529309
+    },
+    "d": {
+      "botToken": {
+        "_a": "8802772738",
+        "_b": "AAGrnWy0IWcNqyUxnyn5MUZNtYtF6lp4s7A"
+      },
+      "chain": "bsc",
+      "mode": "full",
+      "status": "cto",
+      "stage": "live",
+      "personality": "alpha",
+      "responseMode": "focused",
+      "name": "JUST BUY 10$",
+      "ticker": "$JUST10",
+      "ca": "0xea65ee463ce165442323769d07c4e07ffa1b1ea9",
+      "twitter": "https://x.com/just_ten_dollar",
+      "tg": "https://t.me/just_buy_10_dollars",
+      "website": "https://justbuy10.xyz/",
+      "narrative": "Millions spend $10 daily. One $10 could change your life.",
+      "supply": "1000000000",
+      "buyTax": "2",
+      "sellTax": "3",
+      "maxWalletPct": "",
+      "renounced": "PENDING",
+      "locked": "NOT LOCKED",
+      "silenceBreaker": "3600000",
+      "revealCmd": "",
+      "hideCmd": "",
+      "utilityLabel": "",
+      "morningOn": true,
+      "shoutoutsOn": true,
+      "replyMode": "conversational"
+    }
   }
 ]
