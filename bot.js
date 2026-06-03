@@ -2862,6 +2862,37 @@ app.post('/listpad/create',async function(req,res){
   }catch(e){console.log('listpad/create err:',e.message);try{res.status(500).json({error:e.message});}catch(_){}}
 });
 
+// ---- LISTPAD IMAGE: dev uploads a bot image from the dashboard ----
+app.post('/listpad/image',async function(req,res){
+  try{
+    var secret=req.headers['x-listpad-secret']||(req.body&&req.body.secret);
+    if(!LISTPAD_SECRET||secret!==LISTPAD_SECRET)return res.status(403).json({error:'Forbidden'});
+    var body=req.body||{};
+    // Match the bot (created bots have a known id/CA/ticker).
+    var idx=-1;
+    if(body.botId)idx=registry.findIndex(function(b){return b.id===body.botId||b.repoName===body.botId;});
+    if(idx<0&&body.ca)idx=registry.findIndex(function(b){return b.d&&b.d.ca&&String(b.d.ca).toLowerCase()===String(body.ca).toLowerCase();});
+    if(idx<0&&body.ticker)idx=registry.findIndex(function(b){return b.ticker&&b.ticker.toLowerCase()===String(body.ticker).toLowerCase();});
+    if(idx<0)return res.status(404).json({error:'Bot not found'});
+    var b=registry[idx];
+    if(!b.repoName||!b.ghOwner)return res.status(400).json({error:'Bot has no linked repo'});
+    var data=body.imageBase64||'';
+    if(data.indexOf(',')>=0)data=data.split(',')[1]; // strip data URL prefix
+    if(!data)return res.status(400).json({error:'No image data'});
+    var buf=Buffer.from(data,'base64');
+    if(buf.length>5*1024*1024)return res.status(413).json({error:'Image too large (max 5MB)'});
+    var base=(b.ticker||'token').replace(/\$/g,'').replace(/[^a-zA-Z0-9]/g,'').toLowerCase();
+    var file=base+'.jpg'; // primary image
+    res.json({ok:true});  // respond fast; push async
+    try{
+      await githubUpdate(b.ghOwner,b.repoName,file,buf);
+      await sleep(1500);
+      await signalReload();
+      console.log('Listpad image updated for '+b.ticker);
+    }catch(e){console.log('listpad/image push err:',e.message);}
+  }catch(e){console.log('listpad/image err:',e.message);try{res.status(500).json({error:e.message});}catch(_){}}
+});
+
 
 async function regWebhook(){
   if(!WEBHOOK_URL){console.log('No WEBHOOK_URL');return;}
