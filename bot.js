@@ -2787,6 +2787,81 @@ app.post('/listpad/update',async function(req,res){
   }catch(e){console.log('listpad/update err:',e.message);try{res.status(500).json({error:e.message});}catch(_){}}
 });
 
+// ---- LISTPAD AUTO-CREATE: build a bot from an approved Listpad request ----
+// Mirrors doBuild() but driven by an API payload. If no botToken is given and
+// BotFather automation is connected, it auto-creates the token via gramjs.
+app.post('/listpad/create',async function(req,res){
+  try{
+    var secret=req.headers['x-listpad-secret']||(req.body&&req.body.secret);
+    if(!LISTPAD_SECRET||secret!==LISTPAD_SECRET)return res.status(403).json({error:'Forbidden'});
+    var p=req.body||{};
+    if(!p.ticker)return res.status(400).json({error:'ticker required'});
+    // Guard against duplicates: same ticker or CA already in registry.
+    var dupe=registry.findIndex(function(b){
+      return (b.ticker&&b.ticker.toLowerCase()===String(p.ticker).toLowerCase())||
+             (p.ca&&b.d&&b.d.ca&&String(b.d.ca).toLowerCase()===String(p.ca).toLowerCase());
+    });
+    if(dupe>=0)return res.status(409).json({error:'A bot for this token already exists',botId:registry[dupe].id});
+
+    // Build the d object from defaults + payload.
+    var mode=(p.mode==='guard')?'guard':'full';
+    var ticker=String(p.ticker).charAt(0)==='$'?String(p.ticker):('$'+String(p.ticker));
+    var d={
+      chain:p.chain||'bsc',mode:mode,status:p.status||'cto',guardType:'standard',
+      personality:'alpha',responseMode:p.replyMode==='question'?'question':'focused',
+      silenceBreaker:String(p.silenceBreaker||'3600000'),stage:'live',
+      name:p.name||ticker.replace(/\$/g,''),ticker:ticker,ca:p.ca||'',
+      twitter:p.twitter||'',tg:p.tg||'',website:p.website||'',
+      narrative:p.narrative||'',supply:p.supply||'N/A',
+      buyTax:String(p.buyTax||'0'),sellTax:String(p.sellTax||'0'),
+      maxWalletPct:p.maxWalletPct||'',renounced:p.renounced||'PENDING',
+      locked:p.locked||'NOT LOCKED',shoutoutsOn:p.shoutoutsOn!==false,
+      morningOn:p.morningOn!==false,replyMode:p.replyMode||'conversational',
+      utilityLabel:p.utilityLabel||'',revealCmd:'',hideCmd:''
+    };
+
+    // Token: use the pasted one, else auto-create via BotFather (gramjs).
+    var botToken=p.botToken||'';
+    var createdUsername=null;
+    if(!botToken){
+      if(!tgClient)await connectTgClient();
+      if(!tgClient)return res.status(503).json({error:'No token provided and BotFather automation is not connected. Provide a bot token.'});
+      var bf=await createBotOnBotFather(d.name,d.ticker);
+      if(!bf||!bf.token)return res.status(502).json({error:'BotFather auto-create failed. Provide a bot token instead.'});
+      botToken=bf.token;createdUsername=bf.username;
+    }
+    d.botToken=botToken;
+    if(mode==='full'){var gk=nextGroq();if(!gk)return res.status(503).json({error:'No AI key available (add one with /addgroq).'});}
+
+    // Respond immediately; do the heavy repo/deploy work async.
+    res.json({ok:true,creating:true,username:createdUsername});
+
+    (async function(){
+      try{
+        var ci=CHAIN[d.chain]||CHAIN.bsc;
+        var repoName=d.ticker.replace(/\$/g,'').replace(/[^a-zA-Z0-9]/g,'').toLowerCase()+'-bot-'+rnd(4);
+        var g=await githubCreateRepo(repoName);
+        var ghOwner=g.full_name.split('/')[0];GH_OWNER=GH_OWNER||ghOwner;
+        await sleep(4000);
+        await githubPush(ghOwner,repoName,'bot.js',Buffer.from(genBot(d,ci,d.mode)));
+        await githubPush(ghOwner,repoName,'package.json',Buffer.from(genPkg(d.name,d.mode)));
+        var entry={id:repoName,ticker:d.ticker,chain:d.chain,mode:d.mode,repoName:repoName,ghOwner:ghOwner,
+          d:JSON.parse(JSON.stringify(d)),
+          state:{caUnlocked:true,groupChatId:null,shoutoutOn:true},
+          analytics:{messages:0,shills:0,caReqs:0,priceReqs:0,joinedAt:Date.now()},
+          status:'active',builtAt:Date.now(),source:'listpad'};
+        registry.push(entry);
+        saveRegistry();
+        await syncToBotsJson(entry);
+        await sleep(2000);
+        await signalReload();
+        console.log('Listpad auto-create done: '+d.ticker+' ('+repoName+')'+(createdUsername?' @'+createdUsername:''));
+      }catch(e){console.log('listpad/create async err:',e.message);}
+    })();
+
+  }catch(e){console.log('listpad/create err:',e.message);try{res.status(500).json({error:e.message});}catch(_){}}
+});
+
 
 async function regWebhook(){
   if(!WEBHOOK_URL){console.log('No WEBHOOK_URL');return;}
