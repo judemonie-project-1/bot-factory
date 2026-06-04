@@ -2778,6 +2778,55 @@ app.get('/health',function(req,res){res.end('OK');});
 // ONE writer of registry.json (no concurrent-write race with Listpad).
 var LISTPAD_SECRET=process.env.LISTPAD_SECRET||'';
 var LISTPAD_EDITABLE=['twitter','tg','website','narrative','supply','buyTax','sellTax','maxWalletPct','silenceBreaker','shoutoutsOn','morningOn','replyMode','status','utilityLabel','renounced','locked'];
+// Ownership verification: confirm a verify code appears in the requester's
+// Telegram group description (or recent messages). Proves they control the
+// group the community bot will run in.
+app.post('/listpad/verify',async function(req,res){
+  try{
+    var secret=req.headers['x-listpad-secret']||(req.body&&req.body.secret);
+    if(!LISTPAD_SECRET||secret!==LISTPAD_SECRET)return res.status(403).json({error:'Forbidden'});
+    var body=req.body||{};
+    var tgUrl=String(body.telegram||'');
+    var code=String(body.code||'').trim();
+    if(!tgUrl||!code)return res.status(400).json({error:'Missing telegram or code'});
+    // Extract the public username from a t.me link.
+    var m=tgUrl.match(/t\.me\/([A-Za-z0-9_]+)/i);
+    if(!m)return res.json({verified:false,reason:'Group link is not a public t.me username.'});
+    var uname=m[1];
+    if(!tgClient){return res.json({verified:false,reason:'Verification service offline. Try again shortly.'});}
+    var found=false;
+    try{
+      var ent=await tgClient.getEntity('@'+uname);
+      // Read the full channel/chat description (about).
+      var about='';
+      try{
+        var Api=require('telegram').Api;
+        if(ent&&ent.className&&ent.className.indexOf('Channel')!==-1){
+          var full=await tgClient.invoke(new Api.channels.GetFullChannel({channel:ent}));
+          about=(full&&full.fullChat&&full.fullChat.about)||'';
+        }else{
+          var fullc=await tgClient.invoke(new Api.messages.GetFullChat({chatId:ent.id}));
+          about=(fullc&&fullc.fullChat&&fullc.fullChat.about)||'';
+        }
+      }catch(_){}
+      if(about&&about.toUpperCase().indexOf(code.toUpperCase())!==-1)found=true;
+      // Fallback: scan recent messages for the code.
+      if(!found){
+        try{
+          var msgs=await tgClient.getMessages('@'+uname,{limit:25});
+          for(var i=0;i<msgs.length;i++){
+            var t=(msgs[i]&&msgs[i].text)||'';
+            if(t.toUpperCase().indexOf(code.toUpperCase())!==-1){found=true;break;}
+          }
+        }catch(_){}
+      }
+    }catch(e){
+      return res.json({verified:false,reason:'Could not read that group. Make sure it is public and the link is correct.'});
+    }
+    return res.json({verified:found,reason:found?'Code found.':'Code not found in the group description or recent messages.'});
+  }catch(e){return res.status(500).json({error:e.message});}
+});
+
 app.post('/listpad/update',async function(req,res){
   try{
     var secret=req.headers['x-listpad-secret']||(req.body&&req.body.secret);
