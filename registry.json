@@ -401,7 +401,7 @@
       "utilityLabel": "",
       "morningOn": true,
       "shoutoutsOn": true,
-      "replyMode": "conversational"
+      "replyMode": "question"
     }
   }
 ]
