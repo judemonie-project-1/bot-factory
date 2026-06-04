@@ -395,7 +395,7 @@
       "maxWalletPct": "",
       "renounced": "RENOUNCED",
       "locked": "LOCKED",
-      "silenceBreaker": "0",
+      "silenceBreaker": "1800000",
       "revealCmd": "",
       "hideCmd": "",
       "utilityLabel": "",
