@@ -2317,7 +2317,12 @@ function genGuard(d,ci){
   ln("  if(isPrivate){try{var gr=await smartAsk(chatHistory.join('\\n'));if(gr&&gr!=='IGNORE')return ctx.reply(gr);}catch(_){}return;}");
   ln("  if(RESPONSE_MODE==='focused'){if(text.indexOf('?')===-1)return;try{var gr2=await smartAsk(chatHistory.join('\\n'));if(gr2&&gr2!=='IGNORE')return ctx.reply(gr2);}catch(_){}return;}");
   ln("  var tkLow=TICKER.toLowerCase().replace('$','');");
-  ln("  if(text.indexOf('?')!==-1||lower2.includes(tkLow)){try{var gr3=await smartAsk(chatHistory.join('\\n'));if(gr3&&gr3!=='IGNORE')return ctx.reply(gr3);}catch(_){}}");
+  ln("  var botUser=(ctx.botInfo&&ctx.botInfo.username||'').toLowerCase();");
+  ln("  var repliedToBot=msg.reply_to_message&&msg.reply_to_message.from&&msg.reply_to_message.from.username&&msg.reply_to_message.from.username.toLowerCase()===botUser;");
+  ln("  var mentionsBot=botUser&&lower2.indexOf('@'+botUser)!==-1;");
+  ln("  var addressed=repliedToBot||mentionsBot;");
+  ln("  var isQuestionAboutToken=text.indexOf('?')!==-1&&lower2.includes(tkLow);");
+  ln("  if(addressed||isQuestionAboutToken){try{var gr3=await smartAsk(chatHistory.join('\\n'));if(gr3&&gr3!=='IGNORE')return ctx.reply(gr3);}catch(_){}}");
   ln("});");
 
   // Main message handler
@@ -2562,9 +2567,9 @@ function genFull(d,ci){
     "Token: "+TICKER+" | Chain: "+CHAIN_LBL,
     "Supply: "+SUPPLY+(MAXPCT?" | Max Wallet: "+MAXPCT:""),
     "Tax: "+BUYTAX+"% buy / "+SELLTAX+"% sell",
-    "Contract: "+RENOUNCED+" | LP: "+LOCKED,
-    (IS_CTO?"DEV: CTO. Original dev gone. Community owns "+TICKER+" completely. Say this clearly when asked.":"DEV: Active, building, present. Never imply dev left."),
-  ].join("\\n")+"'+(TWITTER?'\\nTwitter: '+TWITTER:'')+'\\nNarrative: '+"+NARR+"+'\\nPersonality: "+PERS_STYLE.replace(/'/g,"\\'")+"\\nRULES: 2-4 lines max. Natural and professional. Never share TG group link. Never repeat reply. If hype/casual/no question: reply IGNORE exactly.';");
+    (IS_CTO?"DEV: CTO. Original dev gone. Community owns "+TICKER+" completely. Say this only if directly asked.":"DEV: Active, building, present. Never imply dev left."),
+    "You also know (mention ONLY if directly asked about contract safety, never volunteer it): Contract "+RENOUNCED+", LP "+LOCKED+".",
+  ].join("\\n")+"'+(TWITTER?'\\nTwitter: '+TWITTER:'')+'\\nNarrative: '+"+NARR+"+'\\nPersonality: "+PERS_STYLE.replace(/'/g,"\\'")+"\\nRULES: Reply in 1-3 short lines, like a real community member - natural, helpful, professional. Do NOT end messages with contract/renounced/LP info. Do NOT tack on token stats unless the person asked for them. Never repeat a previous reply. Never share the TG group link. Do not hype, shill, or use moon/price-prediction language. If the message is small talk, a reaction, an emoji, off-topic, or not actually directed at the bot or the project, reply with exactly IGNORE.';");
   ln("}");
 
   ln("async function ask(msg){");
@@ -2738,7 +2743,12 @@ function genFull(d,ci){
   ln("  if(isPrivate){try{var gr=await smartAsk(chatHistory.join('\\n'));if(gr&&gr!=='IGNORE')return ctx.reply(gr);}catch(_){}return;}");
   ln("  if(RESPONSE_MODE==='focused'){if(text.indexOf('?')===-1)return;try{var gr2=await smartAsk(chatHistory.join('\\n'));if(gr2&&gr2!=='IGNORE')return ctx.reply(gr2);}catch(_){}return;}");
   ln("  var tkLow=TICKER.toLowerCase().replace('$','');");
-  ln("  if(text.indexOf('?')!==-1||lower2.includes(tkLow)){try{var gr3=await smartAsk(chatHistory.join('\\n'));if(gr3&&gr3!=='IGNORE')return ctx.reply(gr3);}catch(_){}}");
+  ln("  var botUser=(ctx.botInfo&&ctx.botInfo.username||'').toLowerCase();");
+  ln("  var repliedToBot=msg.reply_to_message&&msg.reply_to_message.from&&msg.reply_to_message.from.username&&msg.reply_to_message.from.username.toLowerCase()===botUser;");
+  ln("  var mentionsBot=botUser&&lower2.indexOf('@'+botUser)!==-1;");
+  ln("  var addressed=repliedToBot||mentionsBot;");
+  ln("  var isQuestionAboutToken=text.indexOf('?')!==-1&&lower2.includes(tkLow);");
+  ln("  if(addressed||isQuestionAboutToken){try{var gr3=await smartAsk(chatHistory.join('\\n'));if(gr3&&gr3!=='IGNORE')return ctx.reply(gr3);}catch(_){}}");
   ln("});");
 ;
 
