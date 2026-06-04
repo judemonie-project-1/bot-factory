@@ -9,7 +9,7 @@
       "shoutoutOn": false
     },
     "analytics": {
-      "messages": 1,
+      "messages": 2,
       "shills": 0,
       "caReqs": 0,
       "priceReqs": 0,
@@ -72,12 +72,12 @@
     "ticker": "$FWC",
     "repoName": "fwc-bot-mfxd",
     "state": {
-      "caUnlocked": false,
-      "groupChatId": null,
-      "shoutoutOn": true
+      "caUnlocked": true,
+      "groupChatId": -1003797329661,
+      "shoutoutOn": false
     },
     "analytics": {
-      "messages": 0,
+      "messages": 1,
       "shills": 0,
       "caReqs": 0,
       "priceReqs": 0,
@@ -128,9 +128,9 @@
       "shoutoutOn": true
     },
     "analytics": {
-      "messages": 6,
+      "messages": 70,
       "shills": 0,
-      "caReqs": 1,
+      "caReqs": 4,
       "priceReqs": 0,
       "joinedAt": 1780526529309
     }
