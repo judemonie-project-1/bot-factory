@@ -15,7 +15,8 @@
       "priceReqs": 0,
       "joinedAt": 1775604179857,
       "xReqs": 1
-    }
+    },
+    "d": {}
   },
   {
     "id": "-bot-a4e0",
@@ -32,7 +33,8 @@
       "caReqs": 0,
       "priceReqs": 0,
       "joinedAt": 1776204678002
-    }
+    },
+    "d": {}
   },
   {
     "id": "nrise-bot-16y4",
@@ -49,7 +51,8 @@
       "caReqs": 0,
       "priceReqs": 0,
       "joinedAt": 1776300000000
-    }
+    },
+    "d": {}
   },
   {
     "id": "httpsxcomcakepnutcto-bot-j7i8",
@@ -66,7 +69,8 @@
       "caReqs": 5,
       "priceReqs": 0,
       "joinedAt": 1776400000000
-    }
+    },
+    "d": {}
   },
   {
     "id": "fwc-bot-mfxd",
@@ -85,7 +89,8 @@
       "priceReqs": 2,
       "joinedAt": 1778311745378,
       "xReqs": 1
-    }
+    },
+    "d": {}
   },
   {
     "id": "wcas-bot-ppyb",
@@ -102,7 +107,8 @@
       "caReqs": 0,
       "priceReqs": 0,
       "joinedAt": 1779967862732
-    }
+    },
+    "d": {}
   },
   {
     "id": "dawae-bot-y21a",
@@ -120,23 +126,57 @@
       "caReqs": 5,
       "priceReqs": 0,
       "joinedAt": 1780468557294
-    }
+    },
+    "d": {}
   },
   {
     "id": "just10-bot-rcps",
     "ticker": "$JUST10",
+    "chain": "bsc",
+    "mode": "full",
     "repoName": "just10-bot-rcps",
+    "ghOwner": "judemonie-project-1",
+    "status": "active",
+    "builtAt": 1780526529309,
     "state": {
       "caUnlocked": true,
-      "groupChatId": -1003735418831,
+      "groupChatId": null,
       "shoutoutOn": true
     },
     "analytics": {
-      "messages": 11,
+      "messages": 0,
       "shills": 0,
-      "caReqs": 2,
+      "caReqs": 0,
       "priceReqs": 0,
       "joinedAt": 1780526529309
+    },
+    "d": {
+      "botToken": {
+        "_a": "8802772738",
+        "_b": "AAGrnWy0IWcNqyUxnyn5MUZNtYtF6lp4s7A"
+      },
+      "chain": "bsc",
+      "mode": "full",
+      "status": "dev",
+      "stage": "live",
+      "personality": "alpha",
+      "responseMode": "focused",
+      "name": "JUST BUY 10$",
+      "ticker": "$JUST10",
+      "ca": "0xea65ee463ce165442323769d07c4e07ffa1b1ea9",
+      "twitter": "https://x.com/just_ten_dollar",
+      "tg": "https://t.me/just_buy_10_dollars",
+      "website": "https://justbuy10.xyz/",
+      "narrative": "Millions spend $10 daily. One $10 could change your life.",
+      "supply": "1000000000",
+      "buyTax": "2",
+      "sellTax": "3",
+      "maxWalletPct": "",
+      "renounced": "RENOUNCED",
+      "locked": "LOCKED",
+      "silenceBreaker": "3600000",
+      "revealCmd": "",
+      "hideCmd": ""
     }
   }
 ]
