@@ -5,16 +5,15 @@
     "repoName": "mpc-bot-31hk",
     "state": {
       "caUnlocked": true,
-      "groupChatId": -1003824009208,
-      "shoutoutOn": false
+      "groupChatId": null,
+      "shoutoutOn": true
     },
     "analytics": {
-      "messages": 826,
+      "messages": 0,
       "shills": 0,
-      "caReqs": 35,
+      "caReqs": 0,
       "priceReqs": 0,
-      "joinedAt": 1775604179857,
-      "xReqs": 1
+      "joinedAt": 1775604179857
     }
   },
   {
@@ -40,11 +39,11 @@
     "repoName": "nrise-bot-16y4",
     "state": {
       "caUnlocked": true,
-      "groupChatId": -1003954303302,
-      "shoutoutOn": false
+      "groupChatId": null,
+      "shoutoutOn": true
     },
     "analytics": {
-      "messages": 2,
+      "messages": 0,
       "shills": 0,
       "caReqs": 0,
       "priceReqs": 0,
@@ -57,13 +56,13 @@
     "repoName": "httpsxcomcakepnutcto-bot-j7i8",
     "state": {
       "caUnlocked": true,
-      "groupChatId": -1003838128091,
-      "shoutoutOn": false
+      "groupChatId": null,
+      "shoutoutOn": true
     },
     "analytics": {
-      "messages": 33,
+      "messages": 0,
       "shills": 0,
-      "caReqs": 5,
+      "caReqs": 0,
       "priceReqs": 0,
       "joinedAt": 1776400000000
     }
@@ -73,18 +72,16 @@
     "ticker": "$FWC",
     "repoName": "fwc-bot-mfxd",
     "state": {
-      "caUnlocked": true,
-      "groupChatId": -1003797329661,
-      "shoutoutOn": false,
-      "lastMorningDay": "2026-06-04"
+      "caUnlocked": false,
+      "groupChatId": null,
+      "shoutoutOn": true
     },
     "analytics": {
-      "messages": 4189,
-      "shills": 95,
-      "caReqs": 769,
-      "priceReqs": 2,
-      "joinedAt": 1778311745378,
-      "xReqs": 1
+      "messages": 0,
+      "shills": 0,
+      "caReqs": 0,
+      "priceReqs": 0,
+      "joinedAt": 1778311745378
     }
   },
   {
@@ -93,11 +90,11 @@
     "repoName": "wcas-bot-ppyb",
     "state": {
       "caUnlocked": false,
-      "groupChatId": -1003839256887,
-      "shoutoutOn": false
+      "groupChatId": null,
+      "shoutoutOn": true
     },
     "analytics": {
-      "messages": 24,
+      "messages": 0,
       "shills": 0,
       "caReqs": 0,
       "priceReqs": 0,
@@ -110,14 +107,13 @@
     "repoName": "dawae-bot-y21a",
     "state": {
       "caUnlocked": true,
-      "groupChatId": -1003701480279,
-      "shoutoutOn": true,
-      "lastMorningDay": "2026-06-04"
+      "groupChatId": null,
+      "shoutoutOn": true
     },
     "analytics": {
-      "messages": 21,
+      "messages": 0,
       "shills": 0,
-      "caReqs": 5,
+      "caReqs": 0,
       "priceReqs": 0,
       "joinedAt": 1780468557294
     }
@@ -129,13 +125,12 @@
     "state": {
       "caUnlocked": true,
       "groupChatId": -1003735418831,
-      "shoutoutOn": true,
-      "lastMorningDay": "2026-06-04"
+      "shoutoutOn": true
     },
     "analytics": {
-      "messages": 96,
+      "messages": 1,
       "shills": 0,
-      "caReqs": 8,
+      "caReqs": 0,
       "priceReqs": 0,
       "joinedAt": 1780526529309
     }
