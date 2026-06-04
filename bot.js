@@ -2754,7 +2754,7 @@ app.get('/health',function(req,res){res.end('OK');});
 // as a manual /edit. Auth via shared LISTPAD_SECRET. This keeps the factory the
 // ONE writer of registry.json (no concurrent-write race with Listpad).
 var LISTPAD_SECRET=process.env.LISTPAD_SECRET||'';
-var LISTPAD_EDITABLE=['twitter','tg','website','narrative','supply','buyTax','sellTax','maxWalletPct','silenceBreaker','shoutoutsOn','morningOn','replyMode','status','utilityLabel'];
+var LISTPAD_EDITABLE=['twitter','tg','website','narrative','supply','buyTax','sellTax','maxWalletPct','silenceBreaker','shoutoutsOn','morningOn','replyMode','status','utilityLabel','renounced','locked'];
 app.post('/listpad/update',async function(req,res){
   try{
     var secret=req.headers['x-listpad-secret']||(req.body&&req.body.secret);
