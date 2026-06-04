@@ -2582,23 +2582,35 @@ function genFull(d,ci){
 
   ln("async function smartAsk(msg){var r=await ask(msg);if(lastReplies.includes(r))r=await ask(msg+' Give a completely different response.');lastReplies.push(r);if(lastReplies.length>12)lastReplies.shift();return r;}");
 
-  // Silence breaker
-  ln("var SIL_ANG=['2-3 lines. Why hold "+TICKER+" right now.','2-3 lines. "+TICKER+" fundamentals: renounced, LP locked.','2-3 lines. Being early to "+TICKER+".','2-3 lines. "+TICKER+" community is building.','2-3 lines. The move in "+TICKER+" is still early.'];");
+  // Silence breaker  varied conversation-first angles (a good community
+  // manager restarting a quiet chat), NOT a repeated buy-pitch. Groq writes
+  // each fresh. Weighted toward conversation; project mentions are occasional
+  // and soft. Never states contract claims (those live in /info) and never
+  // uses hype / moon / financial-advice language.
+  ln("var SIL_ANG=["
+    +"'Ask the "+TICKER+" community ONE short, fun question to get people talking. Not about price. Keep it casual, 1-2 lines.',"
+    +"'Casually greet the group like a friendly community member and ask how everyones day is going. 1-2 lines, warm, no hype.',"
+    +"'Say something genuinely warm about the "+TICKER+" community being active, and invite quiet members to say hi. 1-2 lines.',"
+    +"'Ask an open, fun question about crypto or memes in general to spark chatter in the "+TICKER+" chat. 1-2 lines, no price talk.',"
+    +"'Gently encourage the "+TICKER+" community to share the chart, post a meme, or invite a friend. Friendly, 1-2 lines, no hype words.',"
+    +"'Share ONE genuine, conversational reason people like "+TICKER+", no hype or moon talk, no price predictions. 1-2 lines.',"
+    +"'Note that trading has been active for "+TICKER+" today in a calm, factual way (no specific numbers, no predictions) and ask what the community thinks. 1-2 lines.'"
+    +"];");
   ln("var silIdx=0;");
+  // Weighting: conversation angles (0-4) appear more often than the soft
+  // project / market angles (5-6). This order list is shuffled-ish by rotation.
+  ln("var SIL_ORDER=[0,1,2,3,4,0,1,5,2,3,6,4];");
+  ln("var silOrderIdx=0;");
   ln("async function fireSilence(){if(!groupChatId)return resetSil();");
   ln("  try{");
-  ln("    // Delete previous silence breaker first");
-  ln("    // Previous silence breaker stays  new one adds below it naturally");
-  ln("    var p=SIL_ANG[silIdx%SIL_ANG.length];silIdx++;");
+  ln("    var pick=SIL_ORDER[silOrderIdx%SIL_ORDER.length];silOrderIdx++;");
+  ln("    var p=SIL_ANG[pick];");
   ln("    var cap=await smartAsk(p);");
   ln("    if(cap&&cap!=='IGNORE'){");
-  ln("      // Send with image, store ID separately from CA tracker");
   ln("      var silM;");
   ln("      if(IMG_BUF){try{silM=await bot.telegram.sendPhoto(groupChatId,{source:IMG_BUF},{caption:cap,parse_mode:'HTML'});}catch(_){}}");
   ln("      if(!silM)silM=await bot.telegram.sendMessage(groupChatId,cap,{parse_mode:'HTML'});");
   ln("      silImgId=silM.message_id;");
-  ln("      // Pin and notify all");
-  
   ln("    }");
   ln("  }catch(e){console.log('Silence breaker error:',e.message);}");
   ln("  resetSil();");
