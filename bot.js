@@ -2572,20 +2572,22 @@ function genFull(d,ci){
   ].join("\\n")+"'+(TWITTER?'\\nTwitter: '+TWITTER:'')+'\\nNarrative: '+"+NARR+"+'\\nPersonality: "+PERS_STYLE.replace(/'/g,"\\'")+"\\nRULES: Reply in 1-3 short lines, like a real community member - natural, helpful, professional. Do NOT end messages with contract/renounced/LP info. Do NOT tack on token stats unless the person asked for them. Never repeat a previous reply. Never share the TG group link. Do not hype, shill, or use moon/price-prediction language. If the message is small talk, a reaction, an emoji, off-topic, or not actually directed at the bot or the project, reply with exactly IGNORE.';");
   ln("}");
 
-  ln("async function ask(msg){");
+  ln("async function ask(msg,sys){");
   ln("  if(!_groqPool.length)throw new Error('No AI key configured. Add one with /addgroq in factory.');");  
   ln("  var lastErr,attempts=_groqPool.length;");
   ln("  for(var _ai=0;_ai<attempts;_ai++){");
   ln("    try{");
   ln("      var _gc=new Groq({apiKey:nextGroqKey()});");
-  ln("      var r=await _gc.chat.completions.create({model:'llama-3.3-70b-versatile',temperature:1.0,max_tokens:160,messages:[{role:'system',content:sysPrompt()},{role:'user',content:msg}]});");
+  ln("      var r=await _gc.chat.completions.create({model:'llama-3.3-70b-versatile',temperature:1.0,max_tokens:160,messages:[{role:'system',content:sys||sysPrompt()},{role:'user',content:msg}]});");
   ln("      return r.choices[0].message.content.trim();");
   ln("    }catch(e){lastErr=e;console.log('Groq attempt '+(_ai+1)+' failed:',e.message);}");
   ln("  }");
   ln("  throw lastErr||new Error('All Groq keys failed');");
   ln("}");
-
-  ln("async function smartAsk(msg){var r=await ask(msg);if(lastReplies.includes(r))r=await ask(msg+' Give a completely different response.');lastReplies.push(r);if(lastReplies.length>12)lastReplies.shift();return r;}");
+  // Lightweight persona for chatty posts (silence breaker) so the model writes
+  // an actual message to the group instead of describing the project.
+  ln("function chatSys(){return 'You are a friendly, casual member of the "+TICKER+" Telegram community. When asked to post something, output ONLY the exact message to send to the group - no quotes, no preamble, no explanation, no describing the community. Write like a real person texting: short, lowercase-ish, natural. Never use hype, moon, or price-prediction language. Never mention contract/renounced/LP. 1-2 lines max.';}");
+  ln("async function smartAsk(msg,sys){var r=await ask(msg,sys);if(lastReplies.includes(r))r=await ask(msg+' Give a completely different response.',sys);lastReplies.push(r);if(lastReplies.length>12)lastReplies.shift();return r;}");
 
   // Silence breaker  varied conversation-first angles (a good community
   // manager restarting a quiet chat), NOT a repeated buy-pitch. Groq writes
@@ -2593,25 +2595,24 @@ function genFull(d,ci){
   // and soft. Never states contract claims (those live in /info) and never
   // uses hype / moon / financial-advice language.
   ln("var SIL_ANG=["
-    +"'Ask the "+TICKER+" community ONE short, fun question to get people talking. Not about price. Keep it casual, 1-2 lines.',"
-    +"'Casually greet the group like a friendly community member and ask how everyones day is going. 1-2 lines, warm, no hype.',"
-    +"'Say something genuinely warm about the "+TICKER+" community being active, and invite quiet members to say hi. 1-2 lines.',"
-    +"'Ask an open, fun question about crypto or memes in general to spark chatter in the "+TICKER+" chat. 1-2 lines, no price talk.',"
-    +"'Gently encourage the "+TICKER+" community to share the chart, post a meme, or invite a friend. Friendly, 1-2 lines, no hype words.',"
-    +"'Share ONE genuine, conversational reason people like "+TICKER+", no hype or moon talk, no price predictions. 1-2 lines.',"
-    +"'Note that trading has been active for "+TICKER+" today in a calm, factual way (no specific numbers, no predictions) and ask what the community thinks. 1-2 lines.'"
+    +"'Write a casual message to post in the group RIGHT NOW to get people talking again. Ask one fun question (not about price). Speak AS a community member talking to the group, do not describe the community. Example tone: \"ok real question whats everyones fav meme coin moment this year?\" 1-2 lines.',"
+    +"'Write a short friendly greeting to post in the group right now, like \"gm everyone hows the day going so far?\". Speak directly to the group, not about it. 1-2 lines, no hype.',"
+    +"'Post a message that invites quiet lurkers to say hi, like \"i know theres a bunch of you lurking lol drop a gm\". Speak to the group directly. 1-2 lines.',"
+    +"'Post one fun open question about crypto or memes to spark chatter, like \"whats the first coin you ever aped into?\". Speak to the group. 1-2 lines, no price talk.',"
+    +"'Post a friendly nudge for people to share a meme or the chart, like \"lets see those memes, post em below\". Speak to the group directly. 1-2 lines, no hype words.',"
+    +"'Post one genuine conversational line about why people vibe with "+TICKER+", spoken casually to the group, no hype/moon/price-prediction. 1-2 lines.',"
+    +"'Post a calm casual line noting the chat has been a bit quiet and asking what everyone is up to, like \"bit quiet in here, what is everyone up to today?\". Speak to the group. 1-2 lines.'"
     +"];");
   ln("var silIdx=0;");
-  // Weighting: conversation angles (0-4) appear more often than the soft
-  // project / market angles (5-6). This order list is shuffled-ish by rotation.
   ln("var SIL_ORDER=[0,1,2,3,4,0,1,5,2,3,6,4];");
   ln("var silOrderIdx=0;");
   ln("async function fireSilence(){if(!groupChatId)return resetSil();");
   ln("  try{");
   ln("    var pick=SIL_ORDER[silOrderIdx%SIL_ORDER.length];silOrderIdx++;");
   ln("    var p=SIL_ANG[pick];");
-  ln("    var cap=await smartAsk(p);");
+  ln("    var cap=await smartAsk(p,chatSys());");
   ln("    if(cap&&cap!=='IGNORE'){");
+  ln("      if(silImgId){try{await bot.telegram.deleteMessage(groupChatId,silImgId);}catch(_){}silImgId=null;}");
   ln("      var silM;");
   ln("      if(IMG_BUF){try{silM=await bot.telegram.sendPhoto(groupChatId,{source:IMG_BUF},{caption:cap,parse_mode:'HTML'});}catch(_){}}");
   ln("      if(!silM)silM=await bot.telegram.sendMessage(groupChatId,cap,{parse_mode:'HTML'});");
