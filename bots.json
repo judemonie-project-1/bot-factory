@@ -9,7 +9,7 @@
       "shoutoutOn": false
     },
     "analytics": {
-      "messages": 172,
+      "messages": 178,
       "shills": 0,
       "caReqs": 2,
       "priceReqs": 0,
@@ -56,11 +56,11 @@
     "repoName": "httpsxcomcakepnutcto-bot-j7i8",
     "state": {
       "caUnlocked": true,
-      "groupChatId": null,
-      "shoutoutOn": true
+      "groupChatId": -1003838128091,
+      "shoutoutOn": false
     },
     "analytics": {
-      "messages": 0,
+      "messages": 1,
       "shills": 0,
       "caReqs": 0,
       "priceReqs": 0,
@@ -78,9 +78,9 @@
       "lastMorningDay": "2026-06-09"
     },
     "analytics": {
-      "messages": 498,
+      "messages": 518,
       "shills": 0,
-      "caReqs": 84,
+      "caReqs": 87,
       "priceReqs": 0,
       "joinedAt": 1778311745378
     }
