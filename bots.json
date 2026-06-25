@@ -9,7 +9,7 @@
       "shoutoutOn": false
     },
     "analytics": {
-      "messages": 474,
+      "messages": 480,
       "shills": 0,
       "caReqs": 5,
       "priceReqs": 0,
@@ -75,12 +75,12 @@
       "caUnlocked": true,
       "groupChatId": -1003797329661,
       "shoutoutOn": false,
-      "lastMorningDay": "2026-06-24"
+      "lastMorningDay": "2026-06-25"
     },
     "analytics": {
-      "messages": 1415,
+      "messages": 1467,
       "shills": 0,
-      "caReqs": 326,
+      "caReqs": 338,
       "priceReqs": 0,
       "joinedAt": 1778311745378
     }
