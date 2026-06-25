@@ -14,7 +14,8 @@
       "caReqs": 5,
       "priceReqs": 0,
       "joinedAt": 1775604179857
-    }
+    },
+    "d": {}
   },
   {
     "id": "-bot-a4e0",
@@ -31,7 +32,8 @@
       "caReqs": 0,
       "priceReqs": 0,
       "joinedAt": 1776204678002
-    }
+    },
+    "d": {}
   },
   {
     "id": "nrise-bot-16y4",
@@ -48,7 +50,8 @@
       "caReqs": 0,
       "priceReqs": 0,
       "joinedAt": 1776300000000
-    }
+    },
+    "d": {}
   },
   {
     "id": "httpsxcomcakepnutcto-bot-j7i8",
@@ -65,7 +68,8 @@
       "caReqs": 4,
       "priceReqs": 0,
       "joinedAt": 1776400000000
-    }
+    },
+    "d": {}
   },
   {
     "id": "fwc-bot-mfxd",
@@ -83,7 +87,8 @@
       "caReqs": 338,
       "priceReqs": 0,
       "joinedAt": 1778311745378
-    }
+    },
+    "d": {}
   },
   {
     "id": "wcas-bot-ppyb",
@@ -100,7 +105,8 @@
       "caReqs": 0,
       "priceReqs": 0,
       "joinedAt": 1779967862732
-    }
+    },
+    "d": {}
   },
   {
     "id": "dawae-bot-y21a",
@@ -117,7 +123,8 @@
       "caReqs": 0,
       "priceReqs": 0,
       "joinedAt": 1780468557294
-    }
+    },
+    "d": {}
   },
   {
     "id": "just10-bot-rcps",
@@ -135,23 +142,57 @@
       "caReqs": 33,
       "priceReqs": 0,
       "joinedAt": 1780526529309
-    }
+    },
+    "d": {}
   },
   {
     "id": "babysnowball-bot-4ymb",
     "ticker": "$BABYSNOWBALL",
+    "chain": "bsc",
+    "mode": "full",
     "repoName": "babysnowball-bot-4ymb",
+    "ghOwner": "judemonie-project-1",
+    "status": "active",
+    "builtAt": 1782380505975,
     "state": {
       "caUnlocked": true,
-      "groupChatId": -1004388255897,
+      "groupChatId": null,
       "shoutoutOn": true
     },
     "analytics": {
-      "messages": 3,
+      "messages": 0,
       "shills": 0,
-      "caReqs": 2,
+      "caReqs": 0,
       "priceReqs": 0,
       "joinedAt": 1782380505975
+    },
+    "d": {
+      "botToken": {
+        "_a": "8680802263",
+        "_b": "AAGG-t-DeIt43TZDpEY-ykQX7aT0l3Ny3Y0"
+      },
+      "chain": "bsc",
+      "mode": "full",
+      "status": "cto",
+      "stage": "live",
+      "personality": "alpha",
+      "responseMode": "focused",
+      "name": "BabySnowball",
+      "ticker": "$BABYSNOWBALL",
+      "ca": "0xee9c021d159fde02a0262c609449d871aea65555",
+      "twitter": "https://x.com/babysnowballbsb?s=11",
+      "tg": "https://t.me/babysnow_ball",
+      "website": "https://babysnowball.tokly.io/",
+      "narrative": "Babysnowball is an evolutionary baby rising from the snow to take over the space of memecoin",
+      "supply": "N/A",
+      "buyTax": "3",
+      "sellTax": "3",
+      "maxWalletPct": "",
+      "renounced": "RENOUNCED",
+      "locked": "LOCKED",
+      "silenceBreaker": "3600000",
+      "revealCmd": "",
+      "hideCmd": ""
     }
   }
 ]
