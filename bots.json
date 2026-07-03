@@ -9,9 +9,9 @@
       "shoutoutOn": false
     },
     "analytics": {
-      "messages": 575,
+      "messages": 585,
       "shills": 0,
-      "caReqs": 12,
+      "caReqs": 13,
       "priceReqs": 0,
       "joinedAt": 1775604179857
     }
@@ -78,7 +78,7 @@
       "lastMorningDay": "2026-07-02"
     },
     "analytics": {
-      "messages": 1735,
+      "messages": 1774,
       "shills": 0,
       "caReqs": 356,
       "priceReqs": 0,
@@ -145,7 +145,7 @@
       "caUnlocked": true,
       "groupChatId": -1004388255897,
       "shoutoutOn": true,
-      "lastMorningDay": "2026-07-02"
+      "lastMorningDay": "2026-07-03"
     },
     "analytics": {
       "messages": 99,
