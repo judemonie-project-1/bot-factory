@@ -9,9 +9,9 @@
       "shoutoutOn": false
     },
     "analytics": {
-      "messages": 675,
+      "messages": 1,
       "shills": 0,
-      "caReqs": 18,
+      "caReqs": 0,
       "priceReqs": 0,
       "joinedAt": 1775604179857
     }
@@ -56,13 +56,13 @@
     "repoName": "httpsxcomcakepnutcto-bot-j7i8",
     "state": {
       "caUnlocked": true,
-      "groupChatId": -1003838128091,
-      "shoutoutOn": false
+      "groupChatId": null,
+      "shoutoutOn": true
     },
     "analytics": {
-      "messages": 22,
+      "messages": 0,
       "shills": 0,
-      "caReqs": 7,
+      "caReqs": 0,
       "priceReqs": 0,
       "joinedAt": 1776400000000
     }
@@ -72,15 +72,14 @@
     "ticker": "$FWC",
     "repoName": "fwc-bot-mfxd",
     "state": {
-      "caUnlocked": true,
-      "groupChatId": -1003701480279,
-      "shoutoutOn": false,
-      "lastMorningDay": "2026-07-20"
+      "caUnlocked": false,
+      "groupChatId": null,
+      "shoutoutOn": true
     },
     "analytics": {
-      "messages": 1966,
+      "messages": 0,
       "shills": 0,
-      "caReqs": 372,
+      "caReqs": 0,
       "priceReqs": 0,
       "joinedAt": 1778311745378
     }
@@ -125,14 +124,13 @@
     "repoName": "just10-bot-rcps",
     "state": {
       "caUnlocked": true,
-      "groupChatId": -1003735418831,
-      "shoutoutOn": true,
-      "lastMorningDay": "2026-07-20"
+      "groupChatId": null,
+      "shoutoutOn": true
     },
     "analytics": {
-      "messages": 397,
+      "messages": 0,
       "shills": 0,
-      "caReqs": 33,
+      "caReqs": 0,
       "priceReqs": 0,
       "joinedAt": 1780526529309
     }
@@ -143,15 +141,14 @@
     "repoName": "babysnowball-bot-4ymb",
     "state": {
       "caUnlocked": true,
-      "groupChatId": -1004388255897,
-      "shoutoutOn": true,
-      "lastMorningDay": "2026-07-20"
+      "groupChatId": null,
+      "shoutoutOn": true
     },
     "analytics": {
-      "messages": 111,
+      "messages": 0,
       "shills": 0,
-      "caReqs": 6,
-      "priceReqs": 3,
+      "caReqs": 0,
+      "priceReqs": 0,
       "joinedAt": 1782380505975
     }
   }
