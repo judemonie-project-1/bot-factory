@@ -9,9 +9,9 @@
       "shoutoutOn": false
     },
     "analytics": {
-      "messages": 1,
+      "messages": 15,
       "shills": 0,
-      "caReqs": 0,
+      "caReqs": 1,
       "priceReqs": 0,
       "joinedAt": 1775604179857
     }
@@ -141,11 +141,11 @@
     "repoName": "babysnowball-bot-4ymb",
     "state": {
       "caUnlocked": true,
-      "groupChatId": null,
+      "groupChatId": -1004388255897,
       "shoutoutOn": true
     },
     "analytics": {
-      "messages": 0,
+      "messages": 1,
       "shills": 0,
       "caReqs": 0,
       "priceReqs": 0,
