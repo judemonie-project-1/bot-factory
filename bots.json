@@ -142,7 +142,8 @@
     "state": {
       "caUnlocked": true,
       "groupChatId": -1004388255897,
-      "shoutoutOn": true
+      "shoutoutOn": true,
+      "lastMorningDay": "2026-07-24"
     },
     "analytics": {
       "messages": 1,
